@@ -1,0 +1,6 @@
+ib_async>=1.0.3
+numpy>=1.26
+pandas>=2.2
+pandas-ta>=0.3.14b0
+pytz>=2024.1
+python-dotenv>=1.0
