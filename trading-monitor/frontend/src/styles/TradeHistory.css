@@ -1,0 +1,225 @@
+.trade-history {
+  width: 100%;
+}
+
+.trade-history .header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.trade-history h2 {
+  margin: 0;
+  font-size: 1.8rem;
+  color: white;
+}
+
+.filter-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.filter-buttons button {
+  padding: 0.5rem 1rem;
+  background: rgba(102, 126, 234, 0.1);
+  border: 1px solid rgba(102, 126, 234, 0.3);
+  color: var(--text-secondary);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.filter-buttons button:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.filter-buttons button.active {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  border-color: var(--primary);
+  color: white;
+}
+
+/* 表格容器 */
+.trades-table-container {
+  background: linear-gradient(135deg, #1a1f3a 0%, #252d4a 100%);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 2rem;
+}
+
+.trades-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.trades-table thead {
+  background: rgba(102, 126, 234, 0.1);
+  border-bottom: 2px solid var(--border);
+}
+
+.trades-table th {
+  padding: 1rem;
+  text-align: left;
+  font-weight: 600;
+  color: var(--primary);
+  white-space: nowrap;
+}
+
+.trades-table td {
+  padding: 1rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
+}
+
+.trades-table tbody tr {
+  transition: all 0.2s ease;
+}
+
+.trades-table tbody tr:hover {
+  background: rgba(102, 126, 234, 0.05);
+}
+
+.trades-table tr.profit {
+  border-left: 3px solid var(--success);
+}
+
+.trades-table tr.loss {
+  border-left: 3px solid var(--danger);
+}
+
+.trades-table .symbol {
+  font-weight: 600;
+  color: white;
+}
+
+.trades-table .channel {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  background: rgba(102, 126, 234, 0.2);
+  border-radius: 4px;
+  font-size: 0.8rem;
+  color: var(--primary);
+}
+
+.trades-table .pattern {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  background: rgba(245, 158, 11, 0.1);
+  border-radius: 4px;
+  font-size: 0.8rem;
+  color: var(--warning);
+}
+
+.trades-table .positive {
+  color: var(--success);
+  font-weight: 600;
+}
+
+.trades-table .negative {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+/* 統計摘要 */
+.stats-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+  background: linear-gradient(135deg, #1a1f3a 0%, #252d4a 100%);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.stat .label {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.stat .value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: white;
+}
+
+.stat .value.positive {
+  color: var(--success);
+}
+
+.stat .value.negative {
+  color: var(--danger);
+}
+
+/* 空狀態 */
+.empty-state {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--text-secondary);
+}
+
+/* 錯誤 */
+.error-box {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  padding: 2rem;
+  text-align: center;
+  color: var(--danger);
+}
+
+.error-box button {
+  margin-top: 1rem;
+  padding: 0.5rem 1rem;
+  background: var(--danger);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+/* 響應式設計 */
+@media (max-width: 768px) {
+  .trades-table {
+    font-size: 0.8rem;
+  }
+
+  .trades-table th,
+  .trades-table td {
+    padding: 0.75rem 0.5rem;
+  }
+
+  .stats-summary {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .trades-table-container {
+    overflow-x: auto;
+  }
+
+  .trade-history .header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filter-buttons {
+    justify-content: center;
+  }
+
+  .stats-summary {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,220 @@
+.statistics {
+  width: 100%;
+}
+
+.statistics .header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.statistics h2 {
+  margin: 0;
+  font-size: 1.8rem;
+  color: white;
+}
+
+/* 核心指標 */
+.metrics-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.metric-item {
+  background: linear-gradient(135deg, #1a1f3a 0%, #252d4a 100%);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.5rem;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.metric-item:hover {
+  border-color: var(--primary);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(102, 126, 234, 0.15);
+}
+
+.metric-item .label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+}
+
+.metric-item .value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.metric-item .value.positive {
+  color: var(--success);
+}
+
+.metric-item .value.negative {
+  color: var(--danger);
+}
+
+/* 圖表部分 */
+.charts-section {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+.chart-container {
+  background: linear-gradient(135deg, #1a1f3a 0%, #252d4a 100%);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.5rem;
+  transition: all 0.3s ease;
+}
+
+.chart-container:hover {
+  border-color: var(--primary);
+  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.15);
+}
+
+.chart-container h3 {
+  margin: 0 0 1.5rem 0;
+  font-size: 1.1rem;
+  color: white;
+}
+
+/* 表格部分 */
+.table-section {
+  background: linear-gradient(135deg, #1a1f3a 0%, #252d4a 100%);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  overflow: hidden;
+}
+
+.table-section h3 {
+  margin: 0 0 1.5rem 0;
+  font-size: 1.1rem;
+  color: white;
+}
+
+.stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.stats-table thead {
+  background: rgba(102, 126, 234, 0.1);
+  border-bottom: 2px solid var(--border);
+}
+
+.stats-table th {
+  padding: 1rem;
+  text-align: left;
+  font-weight: 600;
+  color: var(--primary);
+  white-space: nowrap;
+}
+
+.stats-table td {
+  padding: 1rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
+}
+
+.stats-table tbody tr:hover {
+  background: rgba(102, 126, 234, 0.05);
+}
+
+.stats-table .positive {
+  color: var(--success);
+  font-weight: 600;
+}
+
+.stats-table .negative {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+/* Recharts 自定義 */
+.recharts-cartesian-axis-tick text {
+  fill: var(--text-secondary) !important;
+  font-size: 12px !important;
+}
+
+.recharts-legend-wrapper {
+  padding-top: 1rem !important;
+}
+
+.recharts-surface {
+  background: transparent !important;
+}
+
+/* 加載狀態 */
+.loading {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--text-secondary);
+}
+
+/* 錯誤 */
+.error-box {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  padding: 2rem;
+  text-align: center;
+  color: var(--danger);
+}
+
+.error-box button {
+  margin-top: 1rem;
+  padding: 0.5rem 1rem;
+  background: var(--danger);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+/* 響應式設計 */
+@media (max-width: 1024px) {
+  .charts-section {
+    grid-template-columns: 1fr;
+  }
+
+  .metrics-summary {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .stats-table {
+    font-size: 0.8rem;
+  }
+
+  .stats-table th,
+  .stats-table td {
+    padding: 0.75rem 0.5rem;
+  }
+
+  .metric-item .value {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .metrics-summary {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .table-section {
+    overflow-x: auto;
+  }
+}
