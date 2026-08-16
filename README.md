@@ -1,7 +1,34 @@
-# AI Auto Trade — IBKR / Ross Cameron 動能策略（Paper Trading）
+# AI Auto Trade — Alpaca 數據 + IBKR 執行 / Ross Cameron 動能策略（Paper Trading）
 
-用 Python + IBKR API（`ib_async`）自動執行 Ross Cameron 風格嘅小型股動能突破策略。
+用 Python 實現混合架構：
+- **Alpaca API** - 免費盤前數據 + 實時行情 + K線數據
+- **IBKR API** - 實際交易執行 + 期權交易 + 融資槓桿
+
+自動執行 Ross Cameron 風格嘅小型股盤前動能突破策略。
+
 **目前只設計喺 Paper Trading 運作，唔好改做真實盤，除非你已經完全理解同測試過成個系統。**
+
+## 🚀 快速開始（新增Alpaca支持）
+
+```bash
+# 1. 安裝依賴（新增Alpaca）
+pip install -r requirements.txt
+
+# 2. 配置API密鑰
+cp .env.example .env
+nano .env  # 填入Alpaca和IBKR密鑰
+
+# 3. 測試Alpaca連接
+python test_alpaca_integration.py
+
+# 4. 運行盤前掃描演示
+python demo_premarket_scan.py
+
+# 5. 啟動交易系統
+python main.py
+```
+
+詳細設置步驟請見 [ALPACA_SETUP.md](./ALPACA_SETUP.md)
 
 ## 策略邏輯概覽
 
@@ -40,6 +67,53 @@
    - 每日最大虧損 $300（觸及後自動停止當日交易）
    - 每週最大虧損 $800（觸及後自動停止當週交易）
 
+## 系統架構（Alpaca + IBKR混合）
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│            盤前Gap-Up動量交易系統架構                        │
+├─────────────────────────────────────────────────────────────┤
+│                                                               │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │ 數據層 (Alpaca API) - 免費盤前數據                    │  │
+│  ├──────────────────────────────────────────────────────┤  │
+│  │ • K線數據獲取 (1min, 5min, 15min)                   │  │
+│  │ • 實時報價推送 (WebSocket)                           │  │
+│  │ • 成交量分析                                         │  │
+│  │ • 盤前市場狀態判斷 (4AM - 9:30AM EST)                │  │
+│  └──────────────────────────────────────────────────────┘  │
+│                          ↓                                    │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │ 分析層 (統一DataFetcher)                             │  │
+│  ├──────────────────────────────────────────────────────┤  │
+│  │ ✓ Gap檢測 (>= 5%)                                   │  │
+│  │ ✓ 成交量爆量確認 (相對20日平均)                      │  │
+│  │ ✓ 支撐位/阻力位識別                                  │  │
+│  │ ✓ K線技術指標 (MACD, VWAP)                          │  │
+│  └──────────────────────────────────────────────────────┘  │
+│                          ↓                                    │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │ 信號層 (RossCameronStrategy)                         │  │
+│  ├──────────────────────────────────────────────────────┤  │
+│  │ • 進場確認 (MACD + VWAP + Pullback)                 │  │
+│  │ • 離場邏輯 (分層止盈 + Trailing Stop)               │  │
+│  │ • 風控檢查 (RiskManager)                            │  │
+│  └──────────────────────────────────────────────────────┘  │
+│                          ↓                                    │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │ 執行層 (IBKR API) - 實際交易執行                     │  │
+│  ├──────────────────────────────────────────────────────┤  │
+│  │ • 下單執行 (StopLimit防滑價)                        │  │
+│  │ • 期權交易支持                                       │  │
+│  │ • 融資槓桿管理                                       │  │
+│  │ • 熔斷/復牌處理                                      │  │
+│  └──────────────────────────────────────────────────────┘  │
+│                                                               │
+└─────────────────────────────────────────────────────────────┘
+
+成本效益: Alpaca (免費數據) + IBKR (專業執行) = 最優方案
+```
+
 ## 安裝
 
 ```bash
@@ -48,34 +122,71 @@ pip install -r requirements.txt
 
 ## 使用步驟
 
+### Step 1: 配置Alpaca API（新增）
+1. 註冊 https://alpaca.markets（免費）
+2. 獲取 API Key 和 Secret Key
+3. 複製 `.env.example` 為 `.env`
+4. 填入 Alpaca 密鑰
+
+### Step 2: 配置IBKR（既有）
 1. 開啟 **TWS** 或 **IB Gateway**，登入 **Paper Trading** 帳戶
 2. TWS: `File -> Global Configuration -> API -> Settings`
    - 打勾 `Enable ActiveX and Socket Clients`
    - Socket port: `7497`（TWS Paper）或 `4002`（IB Gateway Paper）
    - 建議打勾 `Read-Only API` 先測試，確認邏輯正確後先解除
-3. 確認你嘅帳戶有訂閱：
+3. 確認帳戶有訂閱：
    - Level 2 / Market Depth 數據（例如 NASDAQ TotalView 或 NYSE ArcaBook）
-   - IBKR 新聞（TWS -> Global Configuration -> News，一般 Broad Tape 免費）
-4. 檢查 `config/settings.py` 入面嘅所有參數（風控數值、策略參數）
-5. 執行：
+   - IBKR 新聞（TWS -> Global Configuration -> News）
 
+### Step 3: 測試和驗證
+```bash
+# 測試Alpaca連接
+python test_alpaca_integration.py
+
+# 運行盤前掃描演示
+python demo_premarket_scan.py
+```
+
+### Step 4: 檢查配置
+檢查 `config/settings.py` 入面嘅所有參數（風控數值、策略參數）
+
+### Step 5: 啟動交易系統
 ```bash
 python main.py
 ```
 
 ## 檔案結構
 
+### 數據層（新增Alpaca）
 ```
-config/settings.py       全部可調參數（風控、策略、掃描條件、執行安全）
-core/ibkr_client.py      IBKR 連線管理
-core/scanner.py          5 核心條件掃描器
-core/news.py             新聞催化劑判斷
-core/indicators.py       VWAP / MACD / pullback / topping tail 指標
-core/level2.py           Level 2 order book + Time & Sales 分析
-core/risk_manager.py     交易次數/持倉數/虧損上限風控
-core/order_manager.py    落單、分批止盈、防滑價止蝕、熔斷復牌處理
-strategy/ross_cameron.py 進場/離場訊號整合邏輯
-main.py                  主程式 loop
+core/alpaca_client.py       ✨ [新] Alpaca API客戶端 - 免費盤前數據
+core/data_fetcher.py        ✨ [新] 統一數據層 - Gap檢測、成交量分析、技術面
+```
+
+### 現有核心模塊
+```
+config/settings.py          全部可調參數（風控、策略、掃描條件、執行安全）
+core/ibkr_client.py         IBKR 連線管理（保留用於訂單執行）
+core/scanner.py             5 核心條件掃描器
+core/news.py                新聞催化劑判斷
+core/indicators.py          VWAP / MACD / pullback / topping tail 指標
+core/level2.py              Level 2 order book + Time & Sales 分析
+core/risk_manager.py        交易次數/持倉數/虧損上限風控
+core/order_manager.py       落單、分批止盈、防滑價止蝕、熔斷復牌處理
+strategy/ross_cameron.py    進場/離場訊號整合邏輯
+main.py                     主程式 loop
+```
+
+### 測試和演示
+```
+test_alpaca_integration.py  ✨ [新] Alpaca完整測試套件
+demo_premarket_scan.py      ✨ [新] 盤前掃描演示
+```
+
+### 文檔
+```
+ALPACA_SETUP.md             ✨ [新] Alpaca集成詳細指南
+.env.example                ✨ [新] 環境變數模板
 ```
 
 ## 重要提醒
