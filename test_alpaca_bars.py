@@ -3,6 +3,7 @@
 
 import asyncio
 import os
+import base64
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 import aiohttp
@@ -13,15 +14,19 @@ API_KEY = os.getenv("ALPACA_API_KEY")
 SECRET_KEY = os.getenv("ALPACA_SECRET_KEY")
 
 async def test_bars():
+    # Try Basic Auth first
+    credentials = f"{API_KEY}:{SECRET_KEY}"
+    encoded = base64.b64encode(credentials.encode()).decode()
+
     headers = {
-        "APCA-API-KEY-ID": API_KEY,
+        "Authorization": f"Basic {encoded}",
     }
 
-    url = "https://data.alpaca.markets/v1beta3/stocks/SPY/bars"
+    url = "https://paper-api.alpaca.markets/v1beta3/stocks/SPY/bars"
 
-    # Try different date formats
-    end = datetime.now()
-    start = end - timedelta(days=5)
+    # Use recent dates (not future dates)
+    end = datetime(2024, 3, 31)
+    start = datetime(2024, 3, 1)
 
     params = {
         "timeframe": "1Min",
@@ -30,7 +35,7 @@ async def test_bars():
         "end": end.isoformat(),
     }
 
-    print(f"Testing Alpaca bars API")
+    print(f"Testing Alpaca bars API with Basic Auth")
     print(f"URL: {url}")
     print(f"Params: {params}")
     print()
@@ -38,8 +43,8 @@ async def test_bars():
     async with aiohttp.ClientSession() as session:
         async with session.get(url, params=params, headers=headers) as resp:
             print(f"Status: {resp.status}")
-            data = await resp.json()
-            print(f"Response: {data}")
+            text = await resp.text()
+            print(f"Response: {text}")
 
 if __name__ == "__main__":
     asyncio.run(test_bars())
