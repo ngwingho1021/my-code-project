@@ -37,6 +37,9 @@ class Backtester:
                        timeframe: str = "1Min") -> pd.DataFrame:
         """加載歷史K線數據"""
         try:
+            # 初始化 DataFetcher
+            await self.data_fetcher.initialize()
+
             df = await self.data_fetcher.get_bars_dataframe(
                 symbol=symbol,
                 start=start_date,
@@ -88,7 +91,7 @@ class Backtester:
         print(f"{'='*80}")
 
         df = await self.load_bars(symbol, start_date, end_date)
-        if df.empty:
+        if df is None or df.empty:
             return {"error": "No data loaded"}
 
         df = self.ohlcv_data[symbol].copy()
