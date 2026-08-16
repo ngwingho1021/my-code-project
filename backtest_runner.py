@@ -14,6 +14,13 @@ from pathlib import Path
 import sys
 import os
 
+# Python 3.14 相容性修復：在任何其他導入前設定事件循環
+if sys.version_info >= (3, 10):
+    try:
+        asyncio.get_event_loop()
+    except RuntimeError:
+        asyncio.set_event_loop(asyncio.new_event_loop())
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from backtest.backtester import Backtester
