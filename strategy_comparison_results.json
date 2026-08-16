@@ -1,0 +1,573 @@
+{
+  "baseline": {
+    "metrics": {
+      "total_trades": 16.0,
+      "winning_trades": 6.0,
+      "losing_trades": 10.0,
+      "win_rate": 37.5,
+      "total_pnl": 161.2320489825363,
+      "total_pnl_pct": 1.612320489825363,
+      "avg_win": 121.91746584023359,
+      "avg_loss": -57.02727460588651,
+      "max_loss": -80.68527469907922,
+      "profit_factor": 1.282727957975908,
+      "sharpe_ratio": 0.6427350686771154,
+      "max_drawdown": 3.23782873831441,
+      "final_nav": 10161.23204898254
+    },
+    "trades": [
+      {
+        "symbol": "STOCK_A",
+        "entry_date": "2026-04-30",
+        "entry_price": 14.113505860084388,
+        "quantity": 122,
+        "pnl": -75.61753920594575,
+        "pnl_pct": -4.391650815008744,
+        "exit_type": "close"
+      },
+      {
+        "symbol": "STOCK_A",
+        "entry_date": "2026-05-01",
+        "entry_price": 13.663979732047723,
+        "quantity": 1055,
+        "pnl": 249.88717573896386,
+        "pnl_pct": 1.7334618966207356,
+        "exit_type": "tp2"
+      },
+      {
+        "symbol": "STOCK_A",
+        "entry_date": "2026-05-07",
+        "entry_price": 15.176202351746985,
+        "quantity": 160,
+        "pnl": -47.37363585246527,
+        "pnl_pct": -1.9509836335558912,
+        "exit_type": "close"
+      },
+      {
+        "symbol": "STOCK_A",
+        "entry_date": "2026-05-13",
+        "entry_price": 15.126329383233436,
+        "quantity": 327,
+        "pnl": 29.72308999959069,
+        "pnl_pct": 0.6009144544590612,
+        "exit_type": "close"
+      },
+      {
+        "symbol": "STOCK_A",
+        "entry_date": "2026-05-18",
+        "entry_price": 15.997580914305203,
+        "quantity": 1699,
+        "pnl": 249.92488781646566,
+        "pnl_pct": 0.9195213375073137,
+        "exit_type": "tp2"
+      },
+      {
+        "symbol": "STOCK_A",
+        "entry_date": "2026-05-21",
+        "entry_price": 17.26220943205317,
+        "quantity": 624,
+        "pnl": 50.03585435972633,
+        "pnl_pct": 0.46451564820625435,
+        "exit_type": "close"
+      },
+      {
+        "symbol": "STOCK_B",
+        "entry_date": "2026-05-27",
+        "entry_price": 9.708183978753762,
+        "quantity": 275,
+        "pnl": -29.03330436180447,
+        "pnl_pct": -1.087491259496055,
+        "exit_type": "close"
+      },
+      {
+        "symbol": "STOCK_B",
+        "entry_date": "2026-06-01",
+        "entry_price": 9.446725231681025,
+        "quantity": 151,
+        "pnl": -76.23460985080605,
+        "pnl_pct": -5.344338419055913,
+        "exit_type": "close"
+      },
+      {
+        "symbol": "STOCK_B",
+        "entry_date": "2026-06-03",
+        "entry_price": 8.977329700972124,
+        "quantity": 191,
+        "pnl": 149.93243799880605,
+        "pnl_pct": 8.744098886066089,
+        "exit_type": "tp1"
+      },
+      {
+        "symbol": "STOCK_A",
+        "entry_date": "2026-06-05",
+        "entry_price": 15.996230916060936,
+        "quantity": 131,
+        "pnl": -32.50894038675685,
+        "pnl_pct": -1.5513645156961504,
+        "exit_type": "close"
+      },
+      {
+        "symbol": "STOCK_A",
+        "entry_date": "2026-06-16",
+        "entry_price": 16.68509413904404,
+        "quantity": 95,
+        "pnl": -47.08206383679386,
+        "pnl_pct": -2.970319902520168,
+        "exit_type": "close"
+      },
+      {
+        "symbol": "STOCK_A",
+        "entry_date": "2026-06-17",
+        "entry_price": 16.3992785862488,
+        "quantity": 206,
+        "pnl": -80.68527469907922,
+        "pnl_pct": -2.38837390750017,
+        "exit_type": "close"
+      },
+      {
+        "symbol": "STOCK_B",
+        "entry_date": "2026-06-23",
+        "entry_price": 8.444312191570074,
+        "quantity": 701,
+        "pnl": -40.03105342423442,
+        "pnl_pct": -0.6762615876425261,
+        "exit_type": "close"
+      },
+      {
+        "symbol": "STOCK_A",
+        "entry_date": "2026-07-09",
+        "entry_price": 16.035249182527757,
+        "quantity": 186,
+        "pnl": -75.66766214956158,
+        "pnl_pct": -2.537006960541285,
+        "exit_type": "close"
+      },
+      {
+        "symbol": "STOCK_B",
+        "entry_date": "2026-08-03",
+        "entry_price": 8.26542644603732,
+        "quantity": 415,
+        "pnl": 2.0013491278488615,
+        "pnl_pct": 0.05834578591192927,
+        "exit_type": "close"
+      },
+      {
+        "symbol": "STOCK_B",
+        "entry_date": "2026-08-05",
+        "entry_price": 8.388665695760475,
+        "quantity": 252,
+        "pnl": -66.0386622914176,
+        "pnl_pct": -3.123955503776273,
+        "exit_type": "close"
+      }
+    ]
+  },
+  "v1": {
+    "metrics": {
+      "total_trades": 14.0,
+      "winning_trades": 4.0,
+      "losing_trades": 10.0,
+      "win_rate": 28.57142857142857,
+      "total_pnl": 81.47310462321936,
+      "total_pnl_pct": 0.8147310462321935,
+      "avg_win": 162.93646267052108,
+      "avg_loss": -57.02727460588651,
+      "max_loss": -80.68527469907922,
+      "profit_factor": 1.1428669091873618,
+      "sharpe_ratio": 0.32756964932338195,
+      "max_drawdown": 3.262608872044659,
+      "final_nav": 10081.473104623223
+    },
+    "trades": [
+      {
+        "symbol": "STOCK_A",
+        "entry_date": "2026-04-30",
+        "entry_price": 14.113505860084388,
+        "quantity": 122,
+        "pnl": -75.61753920594575,
+        "pnl_pct": -4.391650815008744,
+        "exit_type": "close"
+      },
+      {
+        "symbol": "STOCK_A",
+        "entry_date": "2026-05-01",
+        "entry_price": 13.663979732047723,
+        "quantity": 1055,
+        "pnl": 249.88717573896386,
+        "pnl_pct": 1.7334618966207356,
+        "exit_type": "tp2"
+      },
+      {
+        "symbol": "STOCK_A",
+        "entry_date": "2026-05-07",
+        "entry_price": 15.176202351746985,
+        "quantity": 160,
+        "pnl": -47.37363585246527,
+        "pnl_pct": -1.9509836335558912,
+        "exit_type": "close"
+      },
+      {
+        "symbol": "STOCK_A",
+        "entry_date": "2026-05-18",
+        "entry_price": 15.997580914305203,
+        "quantity": 1699,
+        "pnl": 249.92488781646566,
+        "pnl_pct": 0.9195213375073137,
+        "exit_type": "tp2"
+      },
+      {
+        "symbol": "STOCK_B",
+        "entry_date": "2026-05-27",
+        "entry_price": 9.708183978753762,
+        "quantity": 275,
+        "pnl": -29.03330436180447,
+        "pnl_pct": -1.087491259496055,
+        "exit_type": "close"
+      },
+      {
+        "symbol": "STOCK_B",
+        "entry_date": "2026-06-01",
+        "entry_price": 9.446725231681025,
+        "quantity": 151,
+        "pnl": -76.23460985080605,
+        "pnl_pct": -5.344338419055913,
+        "exit_type": "close"
+      },
+      {
+        "symbol": "STOCK_B",
+        "entry_date": "2026-06-03",
+        "entry_price": 8.977329700972124,
+        "quantity": 191,
+        "pnl": 149.93243799880605,
+        "pnl_pct": 8.744098886066089,
+        "exit_type": "tp1"
+      },
+      {
+        "symbol": "STOCK_A",
+        "entry_date": "2026-06-05",
+        "entry_price": 15.996230916060936,
+        "quantity": 131,
+        "pnl": -32.50894038675685,
+        "pnl_pct": -1.5513645156961504,
+        "exit_type": "close"
+      },
+      {
+        "symbol": "STOCK_A",
+        "entry_date": "2026-06-16",
+        "entry_price": 16.68509413904404,
+        "quantity": 95,
+        "pnl": -47.08206383679386,
+        "pnl_pct": -2.970319902520168,
+        "exit_type": "close"
+      },
+      {
+        "symbol": "STOCK_A",
+        "entry_date": "2026-06-17",
+        "entry_price": 16.3992785862488,
+        "quantity": 206,
+        "pnl": -80.68527469907922,
+        "pnl_pct": -2.38837390750017,
+        "exit_type": "close"
+      },
+      {
+        "symbol": "STOCK_B",
+        "entry_date": "2026-06-23",
+        "entry_price": 8.444312191570074,
+        "quantity": 701,
+        "pnl": -40.03105342423442,
+        "pnl_pct": -0.6762615876425261,
+        "exit_type": "close"
+      },
+      {
+        "symbol": "STOCK_A",
+        "entry_date": "2026-07-09",
+        "entry_price": 16.035249182527757,
+        "quantity": 186,
+        "pnl": -75.66766214956158,
+        "pnl_pct": -2.537006960541285,
+        "exit_type": "close"
+      },
+      {
+        "symbol": "STOCK_B",
+        "entry_date": "2026-08-03",
+        "entry_price": 8.26542644603732,
+        "quantity": 415,
+        "pnl": 2.0013491278488615,
+        "pnl_pct": 0.05834578591192927,
+        "exit_type": "close"
+      },
+      {
+        "symbol": "STOCK_B",
+        "entry_date": "2026-08-05",
+        "entry_price": 8.388665695760475,
+        "quantity": 252,
+        "pnl": -66.0386622914176,
+        "pnl_pct": -3.123955503776273,
+        "exit_type": "close"
+      }
+    ]
+  },
+  "v2": {
+    "metrics": {
+      "total_trades": 14.0,
+      "winning_trades": 4.0,
+      "losing_trades": 10.0,
+      "win_rate": 28.57142857142857,
+      "total_pnl": 81.47310462321936,
+      "total_pnl_pct": 0.8147310462321935,
+      "avg_win": 162.93646267052108,
+      "avg_loss": -57.02727460588651,
+      "max_loss": -80.68527469907922,
+      "profit_factor": 1.1428669091873618,
+      "sharpe_ratio": 0.32756964932338195,
+      "max_drawdown": 3.262608872044659,
+      "final_nav": 10081.473104623223
+    },
+    "trades": [
+      {
+        "symbol": "STOCK_A",
+        "entry_date": "2026-04-30",
+        "entry_price": 14.113505860084388,
+        "quantity": 122,
+        "pnl": -75.61753920594575,
+        "pnl_pct": -4.391650815008744,
+        "exit_type": "close"
+      },
+      {
+        "symbol": "STOCK_A",
+        "entry_date": "2026-05-01",
+        "entry_price": 13.663979732047723,
+        "quantity": 1055,
+        "pnl": 249.88717573896386,
+        "pnl_pct": 1.7334618966207356,
+        "exit_type": "tp2"
+      },
+      {
+        "symbol": "STOCK_A",
+        "entry_date": "2026-05-07",
+        "entry_price": 15.176202351746985,
+        "quantity": 160,
+        "pnl": -47.37363585246527,
+        "pnl_pct": -1.9509836335558912,
+        "exit_type": "close"
+      },
+      {
+        "symbol": "STOCK_A",
+        "entry_date": "2026-05-18",
+        "entry_price": 15.997580914305203,
+        "quantity": 1699,
+        "pnl": 249.92488781646566,
+        "pnl_pct": 0.9195213375073137,
+        "exit_type": "tp2"
+      },
+      {
+        "symbol": "STOCK_B",
+        "entry_date": "2026-05-27",
+        "entry_price": 9.708183978753762,
+        "quantity": 275,
+        "pnl": -29.03330436180447,
+        "pnl_pct": -1.087491259496055,
+        "exit_type": "close"
+      },
+      {
+        "symbol": "STOCK_B",
+        "entry_date": "2026-06-01",
+        "entry_price": 9.446725231681025,
+        "quantity": 151,
+        "pnl": -76.23460985080605,
+        "pnl_pct": -5.344338419055913,
+        "exit_type": "close"
+      },
+      {
+        "symbol": "STOCK_B",
+        "entry_date": "2026-06-03",
+        "entry_price": 8.977329700972124,
+        "quantity": 191,
+        "pnl": 149.93243799880605,
+        "pnl_pct": 8.744098886066089,
+        "exit_type": "tp1"
+      },
+      {
+        "symbol": "STOCK_A",
+        "entry_date": "2026-06-05",
+        "entry_price": 15.996230916060936,
+        "quantity": 131,
+        "pnl": -32.50894038675685,
+        "pnl_pct": -1.5513645156961504,
+        "exit_type": "close"
+      },
+      {
+        "symbol": "STOCK_A",
+        "entry_date": "2026-06-16",
+        "entry_price": 16.68509413904404,
+        "quantity": 95,
+        "pnl": -47.08206383679386,
+        "pnl_pct": -2.970319902520168,
+        "exit_type": "close"
+      },
+      {
+        "symbol": "STOCK_A",
+        "entry_date": "2026-06-17",
+        "entry_price": 16.3992785862488,
+        "quantity": 206,
+        "pnl": -80.68527469907922,
+        "pnl_pct": -2.38837390750017,
+        "exit_type": "close"
+      },
+      {
+        "symbol": "STOCK_B",
+        "entry_date": "2026-06-23",
+        "entry_price": 8.444312191570074,
+        "quantity": 701,
+        "pnl": -40.03105342423442,
+        "pnl_pct": -0.6762615876425261,
+        "exit_type": "close"
+      },
+      {
+        "symbol": "STOCK_A",
+        "entry_date": "2026-07-09",
+        "entry_price": 16.035249182527757,
+        "quantity": 186,
+        "pnl": -75.66766214956158,
+        "pnl_pct": -2.537006960541285,
+        "exit_type": "close"
+      },
+      {
+        "symbol": "STOCK_B",
+        "entry_date": "2026-08-03",
+        "entry_price": 8.26542644603732,
+        "quantity": 415,
+        "pnl": 2.0013491278488615,
+        "pnl_pct": 0.05834578591192927,
+        "exit_type": "close"
+      },
+      {
+        "symbol": "STOCK_B",
+        "entry_date": "2026-08-05",
+        "entry_price": 8.388665695760475,
+        "quantity": 252,
+        "pnl": -66.0386622914176,
+        "pnl_pct": -3.123955503776273,
+        "exit_type": "close"
+      }
+    ]
+  },
+  "v3": {
+    "metrics": {
+      "total_trades": 11.0,
+      "winning_trades": 3.0,
+      "losing_trades": 8.0,
+      "win_rate": 27.27272727272727,
+      "total_pnl": 111.4491569731036,
+      "total_pnl_pct": 1.114491569731036,
+      "avg_win": 187.001858302885,
+      "avg_loss": -56.194552241943924,
+      "max_loss": -76.23460985080605,
+      "profit_factor": 1.2479091667401823,
+      "sharpe_ratio": 0.42822491912553706,
+      "max_drawdown": 2.122750843612112,
+      "final_nav": 10111.449156973107
+    },
+    "trades": [
+      {
+        "symbol": "STOCK_A",
+        "entry_date": "2026-04-30",
+        "entry_price": 14.113505860084388,
+        "quantity": 122,
+        "pnl": -75.61753920594575,
+        "pnl_pct": -4.391650815008744,
+        "exit_type": "close"
+      },
+      {
+        "symbol": "STOCK_A",
+        "entry_date": "2026-05-01",
+        "entry_price": 13.663979732047723,
+        "quantity": 1055,
+        "pnl": 370.9757282322858,
+        "pnl_pct": 2.5734505484729646,
+        "exit_type": "close"
+      },
+      {
+        "symbol": "STOCK_A",
+        "entry_date": "2026-05-07",
+        "entry_price": 15.176202351746985,
+        "quantity": 160,
+        "pnl": -47.37363585246527,
+        "pnl_pct": -1.9509836335558912,
+        "exit_type": "close"
+      },
+      {
+        "symbol": "STOCK_B",
+        "entry_date": "2026-05-27",
+        "entry_price": 9.708183978753762,
+        "quantity": 275,
+        "pnl": -29.03330436180447,
+        "pnl_pct": -1.087491259496055,
+        "exit_type": "close"
+      },
+      {
+        "symbol": "STOCK_B",
+        "entry_date": "2026-06-01",
+        "entry_price": 9.446725231681025,
+        "quantity": 151,
+        "pnl": -76.23460985080605,
+        "pnl_pct": -5.344338419055913,
+        "exit_type": "close"
+      },
+      {
+        "symbol": "STOCK_B",
+        "entry_date": "2026-06-03",
+        "entry_price": 8.977329700972124,
+        "quantity": 191,
+        "pnl": 188.0284975485204,
+        "pnl_pct": 10.965871014355079,
+        "exit_type": "tp1"
+      },
+      {
+        "symbol": "STOCK_A",
+        "entry_date": "2026-06-05",
+        "entry_price": 15.996230916060936,
+        "quantity": 131,
+        "pnl": -32.50894038675685,
+        "pnl_pct": -1.5513645156961504,
+        "exit_type": "close"
+      },
+      {
+        "symbol": "STOCK_A",
+        "entry_date": "2026-06-16",
+        "entry_price": 16.68509413904404,
+        "quantity": 95,
+        "pnl": -47.08206383679386,
+        "pnl_pct": -2.970319902520168,
+        "exit_type": "close"
+      },
+      {
+        "symbol": "STOCK_A",
+        "entry_date": "2026-07-09",
+        "entry_price": 16.035249182527757,
+        "quantity": 186,
+        "pnl": -75.66766214956158,
+        "pnl_pct": -2.537006960541285,
+        "exit_type": "close"
+      },
+      {
+        "symbol": "STOCK_B",
+        "entry_date": "2026-08-03",
+        "entry_price": 8.26542644603732,
+        "quantity": 415,
+        "pnl": 2.0013491278488615,
+        "pnl_pct": 0.05834578591192927,
+        "exit_type": "close"
+      },
+      {
+        "symbol": "STOCK_B",
+        "entry_date": "2026-08-05",
+        "entry_price": 8.388665695760475,
+        "quantity": 252,
+        "pnl": -66.0386622914176,
+        "pnl_pct": -3.123955503776273,
+        "exit_type": "close"
+      }
+    ]
+  }
+}
