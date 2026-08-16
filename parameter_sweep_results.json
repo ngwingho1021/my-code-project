@@ -1,0 +1,352 @@
+[
+  {
+    "gap_threshold": 2,
+    "risk_per_trade": 25,
+    "win_rate": 24.137931034482758,
+    "profit_factor": 1.0437049089165447,
+    "max_drawdown": 0.8883384030944217,
+    "total_pnl": 11.552695769436959,
+    "total_trades": 29,
+    "score": 57.82457275503654
+  },
+  {
+    "gap_threshold": 2,
+    "risk_per_trade": 50,
+    "win_rate": 24.137931034482758,
+    "profit_factor": 1.04011940120989,
+    "max_drawdown": 1.7869259855605195,
+    "total_pnl": 21.32891275832688,
+    "total_trades": 29,
+    "score": 56.89013009550389
+  },
+  {
+    "gap_threshold": 2,
+    "risk_per_trade": 75,
+    "win_rate": 24.137931034482758,
+    "profit_factor": 1.0394102398469498,
+    "max_drawdown": 2.6890948787035995,
+    "total_pnl": 31.486730814981087,
+    "total_trades": 29,
+    "score": 55.980869588731416
+  },
+  {
+    "gap_threshold": 2,
+    "risk_per_trade": 100,
+    "win_rate": 24.137931034482758,
+    "profit_factor": 1.0383555141439642,
+    "max_drawdown": 3.587682461169716,
+    "total_pnl": 40.91009237816333,
+    "total_trades": 29,
+    "score": 55.071734749235446
+  },
+  {
+    "gap_threshold": 2,
+    "risk_per_trade": 150,
+    "win_rate": 24.137931034482758,
+    "profit_factor": 1.0377399248883565,
+    "max_drawdown": 5.392941310601072,
+    "total_pnl": 60.45176968913758,
+    "total_trades": 29,
+    "score": 53.260320007248005
+  },
+  {
+    "gap_threshold": 3,
+    "risk_per_trade": 25,
+    "win_rate": 15.789473684210526,
+    "profit_factor": 0.40204677698924896,
+    "max_drawdown": 1.5625454857090517,
+    "total_pnl": -129.2725319817341,
+    "total_trades": 19,
+    "score": 34.03686965260449
+  },
+  {
+    "gap_threshold": 3,
+    "risk_per_trade": 50,
+    "win_rate": 15.789473684210526,
+    "profit_factor": 0.40027786154774253,
+    "max_drawdown": 3.1461352213161806,
+    "total_pnl": -260.77684448565554,
+    "total_trades": 19,
+    "score": 32.4355907625823
+  },
+  {
+    "gap_threshold": 3,
+    "risk_per_trade": 75,
+    "win_rate": 15.789473684210526,
+    "profit_factor": 0.3994507207859547,
+    "max_drawdown": 4.7302613654146075,
+    "total_pnl": -392.75611858358013,
+    "total_trades": 19,
+    "score": 30.84319321086599
+  },
+  {
+    "gap_threshold": 3,
+    "risk_per_trade": 100,
+    "win_rate": 15.789473684210526,
+    "profit_factor": 0.39912809692043694,
+    "max_drawdown": 6.3133537118550525,
+    "total_pnl": -524.4607462411632,
+    "total_trades": 19,
+    "score": 29.256874625770372
+  },
+  {
+    "gap_threshold": 3,
+    "risk_per_trade": 150,
+    "win_rate": 15.789473684210526,
+    "profit_factor": 0.39867068802377426,
+    "max_drawdown": 9.485571965382787,
+    "total_pnl": -788.3945702252277,
+    "total_trades": 19,
+    "score": 26.080082283276006
+  },
+  {
+    "gap_threshold": 10,
+    "risk_per_trade": 25,
+    "win_rate": 0,
+    "profit_factor": 0,
+    "max_drawdown": 0,
+    "total_pnl": 0,
+    "total_trades": 0,
+    "score": 0
+  },
+  {
+    "gap_threshold": 10,
+    "risk_per_trade": 50,
+    "win_rate": 0,
+    "profit_factor": 0,
+    "max_drawdown": 0,
+    "total_pnl": 0,
+    "total_trades": 0,
+    "score": 0
+  },
+  {
+    "gap_threshold": 10,
+    "risk_per_trade": 75,
+    "win_rate": 0,
+    "profit_factor": 0,
+    "max_drawdown": 0,
+    "total_pnl": 0,
+    "total_trades": 0,
+    "score": 0
+  },
+  {
+    "gap_threshold": 10,
+    "risk_per_trade": 100,
+    "win_rate": 0,
+    "profit_factor": 0,
+    "max_drawdown": 0,
+    "total_pnl": 0,
+    "total_trades": 0,
+    "score": 0
+  },
+  {
+    "gap_threshold": 10,
+    "risk_per_trade": 150,
+    "win_rate": 0,
+    "profit_factor": 0,
+    "max_drawdown": 0,
+    "total_pnl": 0,
+    "total_trades": 0,
+    "score": 0
+  },
+  {
+    "gap_threshold": 15,
+    "risk_per_trade": 25,
+    "win_rate": 0,
+    "profit_factor": 0,
+    "max_drawdown": 0,
+    "total_pnl": 0,
+    "total_trades": 0,
+    "score": 0
+  },
+  {
+    "gap_threshold": 15,
+    "risk_per_trade": 50,
+    "win_rate": 0,
+    "profit_factor": 0,
+    "max_drawdown": 0,
+    "total_pnl": 0,
+    "total_trades": 0,
+    "score": 0
+  },
+  {
+    "gap_threshold": 15,
+    "risk_per_trade": 75,
+    "win_rate": 0,
+    "profit_factor": 0,
+    "max_drawdown": 0,
+    "total_pnl": 0,
+    "total_trades": 0,
+    "score": 0
+  },
+  {
+    "gap_threshold": 15,
+    "risk_per_trade": 100,
+    "win_rate": 0,
+    "profit_factor": 0,
+    "max_drawdown": 0,
+    "total_pnl": 0,
+    "total_trades": 0,
+    "score": 0
+  },
+  {
+    "gap_threshold": 15,
+    "risk_per_trade": 150,
+    "win_rate": 0,
+    "profit_factor": 0,
+    "max_drawdown": 0,
+    "total_pnl": 0,
+    "total_trades": 0,
+    "score": 0
+  },
+  {
+    "gap_threshold": 20,
+    "risk_per_trade": 25,
+    "win_rate": 0,
+    "profit_factor": 0,
+    "max_drawdown": 0,
+    "total_pnl": 0,
+    "total_trades": 0,
+    "score": 0
+  },
+  {
+    "gap_threshold": 20,
+    "risk_per_trade": 50,
+    "win_rate": 0,
+    "profit_factor": 0,
+    "max_drawdown": 0,
+    "total_pnl": 0,
+    "total_trades": 0,
+    "score": 0
+  },
+  {
+    "gap_threshold": 20,
+    "risk_per_trade": 75,
+    "win_rate": 0,
+    "profit_factor": 0,
+    "max_drawdown": 0,
+    "total_pnl": 0,
+    "total_trades": 0,
+    "score": 0
+  },
+  {
+    "gap_threshold": 20,
+    "risk_per_trade": 100,
+    "win_rate": 0,
+    "profit_factor": 0,
+    "max_drawdown": 0,
+    "total_pnl": 0,
+    "total_trades": 0,
+    "score": 0
+  },
+  {
+    "gap_threshold": 20,
+    "risk_per_trade": 150,
+    "win_rate": 0,
+    "profit_factor": 0,
+    "max_drawdown": 0,
+    "total_pnl": 0,
+    "total_trades": 0,
+    "score": 0
+  },
+  {
+    "gap_threshold": 8,
+    "risk_per_trade": 25,
+    "win_rate": 0.0,
+    "profit_factor": 0.0,
+    "max_drawdown": 0.03782795390872707,
+    "total_pnl": -3.782795390872046,
+    "total_trades": 1,
+    "score": -0.03782795390872707
+  },
+  {
+    "gap_threshold": 8,
+    "risk_per_trade": 50,
+    "win_rate": 0.0,
+    "profit_factor": 0.0,
+    "max_drawdown": 0.07630811391931275,
+    "total_pnl": -7.630811391931541,
+    "total_trades": 1,
+    "score": -0.07630811391931275
+  },
+  {
+    "gap_threshold": 8,
+    "risk_per_trade": 75,
+    "win_rate": 0.0,
+    "profit_factor": 0.0,
+    "max_drawdown": 0.11413606782803981,
+    "total_pnl": -11.413606782803587,
+    "total_trades": 1,
+    "score": -0.11413606782803981
+  },
+  {
+    "gap_threshold": 8,
+    "risk_per_trade": 100,
+    "win_rate": 0.0,
+    "profit_factor": 0.0,
+    "max_drawdown": 0.1526162278386255,
+    "total_pnl": -15.261622783863082,
+    "total_trades": 1,
+    "score": -0.1526162278386255
+  },
+  {
+    "gap_threshold": 8,
+    "risk_per_trade": 150,
+    "win_rate": 0.0,
+    "profit_factor": 0.0,
+    "max_drawdown": 0.22892434175793824,
+    "total_pnl": -22.892434175794623,
+    "total_trades": 1,
+    "score": -0.22892434175793824
+  },
+  {
+    "gap_threshold": 5,
+    "risk_per_trade": 25,
+    "win_rate": 0.0,
+    "profit_factor": 0.0,
+    "max_drawdown": 0.9288728645294213,
+    "total_pnl": -92.88728645294381,
+    "total_trades": 7,
+    "score": -0.9288728645294213
+  },
+  {
+    "gap_threshold": 5,
+    "risk_per_trade": 50,
+    "win_rate": 0.0,
+    "profit_factor": 0.0,
+    "max_drawdown": 1.8634941118635107,
+    "total_pnl": -186.34941118635066,
+    "total_trades": 7,
+    "score": -1.8634941118635107
+  },
+  {
+    "gap_threshold": 5,
+    "risk_per_trade": 75,
+    "win_rate": 0.0,
+    "profit_factor": 0.0,
+    "max_drawdown": 2.7965504683337894,
+    "total_pnl": -279.6550468333804,
+    "total_trades": 7,
+    "score": -2.7965504683337894
+  },
+  {
+    "gap_threshold": 5,
+    "risk_per_trade": 100,
+    "win_rate": 0.0,
+    "profit_factor": 0.0,
+    "max_drawdown": 3.733672256371192,
+    "total_pnl": -373.36722563711834,
+    "total_trades": 7,
+    "score": -3.733672256371192
+  },
+  {
+    "gap_threshold": 5,
+    "risk_per_trade": 150,
+    "win_rate": 0.0,
+    "profit_factor": 0.0,
+    "max_drawdown": 5.60585223399772,
+    "total_pnl": -560.5852233997732,
+    "total_trades": 7,
+    "score": -5.60585223399772
+  }
+]
