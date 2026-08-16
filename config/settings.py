@@ -3,6 +3,12 @@
 """
 import os
 from dataclasses import dataclass, field
+from pathlib import Path
+from dotenv import load_dotenv
+
+# 加載 .env 文件（從項目根目錄）
+env_path = Path(__file__).parent.parent / ".env"
+load_dotenv(env_path)
 
 # ---------------------------------------------------------------------------
 # Alpaca API 設定（免費盤前數據 + 實時行情）
