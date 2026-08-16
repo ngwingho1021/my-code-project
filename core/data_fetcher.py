@@ -78,6 +78,8 @@ class DataFetcher:
         symbol: str,
         timeframe: str = "1Min",
         days_back: int = 5,
+        start: Optional[str] = None,
+        end: Optional[str] = None,
     ) -> Optional[pd.DataFrame]:
         """
         獲取K線數據並轉換為DataFrame
@@ -85,7 +87,9 @@ class DataFetcher:
         Args:
             symbol: 股票代碼
             timeframe: 時間框架
-            days_back: 往回幾天
+            days_back: 往回幾天 (如果未提供 start/end 則使用)
+            start: 開始日期 (YYYY-MM-DD)
+            end: 結束日期 (YYYY-MM-DD)
 
         Returns:
             DataFrame 或 None
@@ -95,16 +99,22 @@ class DataFetcher:
             return None
 
         # 計算日期範圍
-        end = datetime.now(self.tz)
-        start = end - timedelta(days=days_back)
+        if start and end:
+            # 使用提供的日期
+            start_dt = datetime.fromisoformat(start).replace(tzinfo=self.tz)
+            end_dt = datetime.fromisoformat(end).replace(tzinfo=self.tz)
+        else:
+            # 使用 days_back
+            end_dt = datetime.now(self.tz)
+            start_dt = end_dt - timedelta(days=days_back)
 
         try:
             bars = await self.alpaca.get_bars(
                 symbol,
                 timeframe=timeframe,
                 limit=10000,
-                start=start.isoformat(),
-                end=end.isoformat(),
+                start=start_dt.isoformat(),
+                end=end_dt.isoformat(),
             )
 
             if not bars:
