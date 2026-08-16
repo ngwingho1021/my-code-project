@@ -2,6 +2,16 @@
 統一管理同 IBKR TWS / Gateway 嘅連線。
 用 ib_async（原 ib_insync 嘅維護分支）。
 """
+
+# Python 3.14 相容性修復：設定預設事件循環
+import asyncio
+import sys
+if sys.version_info >= (3, 10):
+    try:
+        asyncio.get_event_loop()
+    except RuntimeError:
+        asyncio.set_event_loop(asyncio.new_event_loop())
+
 import pandas as pd
 from datetime import datetime
 from ib_async import IB, Stock, MarketOrder, StopOrder, StopLimitOrder, LimitOrder
