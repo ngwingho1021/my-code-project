@@ -4,11 +4,25 @@
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from dotenv import load_dotenv
 
 # 加載 .env 文件（從項目根目錄）
-env_path = Path(__file__).parent.parent / ".env"
-load_dotenv(env_path)
+# 嘗試多個位置確保 .env 被加載
+try:
+    from dotenv import load_dotenv
+
+    # 嘗試路徑1: 相對於config目錄的父目錄
+    env_path1 = Path(__file__).parent.parent / ".env"
+    # 嘗試路徑2: 當前工作目錄
+    env_path2 = Path.cwd() / ".env"
+
+    # 優先使用第一個存在的 .env
+    if env_path1.exists():
+        load_dotenv(env_path1, override=True)
+    elif env_path2.exists():
+        load_dotenv(env_path2, override=True)
+
+except ImportError:
+    pass  # python-dotenv 未安裝，使用系統環境變數
 
 # ---------------------------------------------------------------------------
 # Alpaca API 設定（免費盤前數據 + 實時行情）
