@@ -43,7 +43,7 @@ async def main():
     parser.add_argument('--end', type=str, required=True, help='結束日期 (YYYY-MM-DD)')
     parser.add_argument('--timeframe', type=str, default='1Min', help='時間框架 (預設: 1Min)')
     parser.add_argument('--capital', type=float, default=25000.0, help='初始資本 (預設: 25000)')
-    parser.add_argument('--slippage', type=float, default=0.5, help='滑點百分比 (預設: 0.5%)')
+    parser.add_argument('--slippage', type=float, default=0.5, help='滑點百分比 (預設: 0.5 百分點)')
     parser.add_argument('--output', type=str, default='backtest_reports', help='報告輸出目錄')
 
     args = parser.parse_args()
