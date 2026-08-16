@@ -5,7 +5,7 @@ import numpy as np
 from typing import Dict, Any, Optional
 from datetime import datetime
 
-from core.indicators import MACD, VWAP
+from core.indicators import compute_macd, compute_vwap
 from config.settings import STRATEGY as STRATEGY_PARAMS
 
 
@@ -19,8 +19,7 @@ class GapMomentumStrategy:
     """
 
     def __init__(self):
-        self.macd = MACD()
-        self.vwap = VWAP()
+        pass
 
     def generate_signal(self, df: pd.DataFrame, current_idx: int) -> Optional[Dict[str, Any]]:
         """
@@ -95,26 +94,22 @@ class GapMomentumStrategy:
             return {'bullish': False, 'confidence': 0}
 
         # 計算MACD
-        macd_line, signal_line, histogram = self.macd.calculate(
-            df['c'].iloc[:idx+1],
-            fast=STRATEGY_PARAMS.macd_fast,
-            slow=STRATEGY_PARAMS.macd_slow,
-            signal=STRATEGY_PARAMS.macd_signal
-        )
+        close_series = pd.Series(df['c'].iloc[:idx+1].values)
+        macd_line, signal_line, histogram = compute_macd(close_series)
 
         if len(macd_line) < 2:
             return {'bullish': False, 'confidence': 0}
 
         # 檢查MACD金叉 (線上穿信號線)
         macd_cross = (
-            macd_line[-2] < signal_line[-2] and
-            macd_line[-1] > signal_line[-1]
+            macd_line.iloc[-2] < signal_line.iloc[-2] and
+            macd_line.iloc[-1] > signal_line.iloc[-1]
         )
 
         # 檢查MACD柱狀圖增長
         histogram_growing = (
             len(histogram) >= 2 and
-            histogram[-1] > histogram[-2]
+            histogram.iloc[-1] > histogram.iloc[-2]
         )
 
         bullish = macd_cross or histogram_growing
@@ -123,8 +118,8 @@ class GapMomentumStrategy:
         return {
             'bullish': bullish,
             'confidence': confidence,
-            'macd_line': macd_line[-1],
-            'signal_line': signal_line[-1],
+            'macd_line': float(macd_line.iloc[-1]),
+            'signal_line': float(signal_line.iloc[-1]),
         }
 
     def _check_vwap(self, df: pd.DataFrame, idx: int) -> Dict[str, Any]:
@@ -133,13 +128,15 @@ class GapMomentumStrategy:
             return {'above_vwap': False, 'confidence': 0}
 
         # 計算VWAP
-        vwap_values = self.vwap.calculate(df.iloc[:idx+1])
+        df_slice = df.iloc[:idx+1].copy()
+        df_slice = df_slice.rename(columns={'o': 'open', 'h': 'high', 'l': 'low', 'c': 'close', 'v': 'volume'})
+        vwap_values = compute_vwap(df_slice)
 
         if len(vwap_values) == 0:
             return {'above_vwap': False, 'confidence': 0}
 
         current_price = df.iloc[idx]['c']
-        current_vwap = vwap_values[-1]
+        current_vwap = float(vwap_values.iloc[-1])
 
         # 檢查價格在VWAP上方
         above_vwap = current_price > current_vwap * (1 + STRATEGY_PARAMS.vwap_buffer_pct / 100)
