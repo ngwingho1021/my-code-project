@@ -5,7 +5,14 @@ import os
 from dataclasses import dataclass, field
 
 # ---------------------------------------------------------------------------
-# IBKR 連線設定
+# Alpaca API 設定（免費盤前數據 + 實時行情）
+# ---------------------------------------------------------------------------
+ALPACA_API_KEY = os.getenv("ALPACA_API_KEY", "")
+ALPACA_SECRET_KEY = os.getenv("ALPACA_SECRET_KEY", "")
+ALPACA_BASE_URL = os.getenv("ALPACA_BASE_URL", "https://paper-api.alpaca.markets")  # paper trading
+
+# ---------------------------------------------------------------------------
+# IBKR 連線設定（實際交易執行 + 期權）
 # ---------------------------------------------------------------------------
 IB_HOST = os.getenv("IB_HOST", "127.0.0.1")
 IB_PORT = int(os.getenv("IB_PORT", "7497"))       # 7497 = TWS Paper, 7496 = TWS Live
