@@ -66,7 +66,7 @@ class Backtester:
         slippage = price * (self.slippage_pct / 100)
         return price + slippage if is_buy else price - slippage
 
-    def run(self, symbol: str, start_date: str, end_date: str,
+    async def run(self, symbol: str, start_date: str, end_date: str,
            signal_func: Callable[[pd.DataFrame, int], Dict[str, Any]]) -> Dict:
         """
         執行回測
@@ -87,8 +87,8 @@ class Backtester:
         print(f"🔄 回測: {symbol} ({start_date} to {end_date})")
         print(f"{'='*80}")
 
-        loop = asyncio.run(self.load_bars(symbol, start_date, end_date))
-        if loop.empty:
+        df = await self.load_bars(symbol, start_date, end_date)
+        if df.empty:
             return {"error": "No data loaded"}
 
         df = self.ohlcv_data[symbol].copy()

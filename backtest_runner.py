@@ -78,7 +78,7 @@ async def main():
 
     # 運行回測
     try:
-        result = backtester.run(
+        result = await backtester.run(
             symbol=args.symbol,
             start_date=args.start,
             end_date=args.end,
