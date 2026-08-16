@@ -27,14 +27,17 @@ async def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 範例:
-  # 回測單個股票
+  # 使用Alpaca數據回測單個股票
   python backtest_runner.py --symbol AAPL --start 2024-01-01 --end 2024-12-31
 
+  # 使用IBKR數據（需要TWS/IB Gateway運行）
+  python backtest_runner.py --symbol AAPL --start 2024-01-01 --end 2024-12-31 --data-source ibkr
+
   # 使用自定義時間框架
-  python backtest_runner.py --symbol TSLA --start 2024-06-01 --end 2024-06-30 --timeframe 5Min
+  python backtest_runner.py --symbol TSLA --start 2024-06-01 --end 2024-06-30 --timeframe 5Min --data-source ibkr
 
   # 使用自定義初始資本
-  python backtest_runner.py --symbol SPY --start 2024-01-01 --end 2024-03-31 --capital 50000
+  python backtest_runner.py --symbol SPY --start 2024-01-01 --end 2024-03-31 --capital 50000 --data-source ibkr
         """
     )
 
@@ -44,6 +47,8 @@ async def main():
     parser.add_argument('--timeframe', type=str, default='1Min', help='時間框架 (預設: 1Min)')
     parser.add_argument('--capital', type=float, default=25000.0, help='初始資本 (預設: 25000)')
     parser.add_argument('--slippage', type=float, default=0.5, help='滑點百分比 (預設: 0.5 百分點)')
+    parser.add_argument('--data-source', type=str, choices=['alpaca', 'ibkr'], default='alpaca',
+                      help='數據源: alpaca (Alpaca API) 或 ibkr (IBKR TWS/Gateway) - 預設: alpaca')
     parser.add_argument('--output', type=str, default='backtest_reports', help='報告輸出目錄')
 
     args = parser.parse_args()
@@ -67,10 +72,11 @@ async def main():
     print(f"時間框架: {args.timeframe}")
     print(f"初始資本: ${args.capital:,.2f}")
     print(f"滑點設定: {args.slippage}%")
+    print(f"數據源: {args.data_source.upper()}")
     print(f"{'='*80}\n")
 
     # 創建回測器
-    backtester = Backtester(initial_capital=args.capital, slippage_pct=args.slippage)
+    backtester = Backtester(initial_capital=args.capital, slippage_pct=args.slippage, data_source=args.data_source)
 
     # 創建策略
     strategy = GapMomentumStrategy()

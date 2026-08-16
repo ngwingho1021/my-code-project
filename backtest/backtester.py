@@ -10,6 +10,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.data_fetcher import DataFetcher
+from core.ibkr_client import IBKRClient
 from config.settings import STRATEGY, ACCOUNT_RISK
 from backtest.portfolio import VirtualPortfolio
 from backtest.sample_data import generate_sample_bars
@@ -24,12 +25,19 @@ class Backtester:
     4. 跟蹤績效指標
     """
 
-    def __init__(self, initial_capital: float = 25000.0, slippage_pct: float = 0.5):
+    def __init__(self, initial_capital: float = 25000.0, slippage_pct: float = 0.5, data_source: str = "alpaca"):
         self.initial_capital = initial_capital
         self.slippage_pct = slippage_pct
+        self.data_source = data_source.lower()
 
         self.portfolio = VirtualPortfolio(initial_capital)
-        self.data_fetcher = DataFetcher()
+
+        if self.data_source == "ibkr":
+            self.ibkr = IBKRClient()
+            self.data_fetcher = None
+        else:
+            self.data_fetcher = DataFetcher()
+            self.ibkr = None
 
         self.ohlcv_data: Dict[str, pd.DataFrame] = {}  # symbol -> OHLCV DataFrame
         self.equity_curve: List[tuple] = []
@@ -38,24 +46,45 @@ class Backtester:
                        timeframe: str = "1Min") -> pd.DataFrame:
         """加載歷史K線數據"""
         try:
-            # 初始化 DataFetcher
-            await self.data_fetcher.initialize()
+            if self.data_source == "ibkr":
+                # 使用IBKR數據源
+                if not self.ibkr.connected:
+                    print(f"🔗 正在連接IBKR...")
+                    self.ibkr.connect()
 
-            df = await self.data_fetcher.get_bars_dataframe(
-                symbol=symbol,
-                start=start_date,
-                end=end_date,
-                timeframe=timeframe
-            )
+                # 轉換timeframe格式 (Alpaca: "1Min" -> IBKR: "1 Min")
+                ibkr_timeframe = timeframe.replace("Min", " Min").replace("Hour", " hour").replace("Day", " day")
 
-            if df.empty:
-                print(f"⚠️  {symbol} 無數據 ({start_date} to {end_date})")
-                return pd.DataFrame()
+                df = self.ibkr.get_historical_bars(
+                    symbol=symbol,
+                    start_date=start_date,
+                    end_date=end_date,
+                    timeframe=ibkr_timeframe
+                )
 
-            # 確保列名正確
-            df = df.rename(columns={
-                'open': 'o', 'high': 'h', 'low': 'l', 'close': 'c', 'volume': 'v'
-            })
+                if df.empty:
+                    print(f"⚠️  {symbol} 無數據 ({start_date} to {end_date})")
+                    return pd.DataFrame()
+
+            else:
+                # 使用Alpaca數據源（原有邏輯）
+                await self.data_fetcher.initialize()
+
+                df = await self.data_fetcher.get_bars_dataframe(
+                    symbol=symbol,
+                    start=start_date,
+                    end=end_date,
+                    timeframe=timeframe
+                )
+
+                if df.empty:
+                    print(f"⚠️  {symbol} 無數據 ({start_date} to {end_date})")
+                    return pd.DataFrame()
+
+                # 確保列名正確
+                df = df.rename(columns={
+                    'open': 'o', 'high': 'h', 'low': 'l', 'close': 'c', 'volume': 'v'
+                })
 
             self.ohlcv_data[symbol] = df
             print(f"✅ {symbol}: {len(df)} 根K線 ({df.index[0]} to {df.index[-1]})")
