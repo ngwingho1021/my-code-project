@@ -65,7 +65,14 @@ class StandaloneBacktester:
                                  gap_pct: float = 0,
                                  volatility: float = 0.03) -> pd.DataFrame:
         """
-        生成模擬股票價格數據
+        生成更逼真的模擬股票價格數據
+
+        改進點：
+        - Gap 動作確實實現
+        - 更真實的日內波動（高和低）
+        - 成交量與價格變動相關
+        - 偶爾極端波動（模擬低流動性）
+        - 可能的反向走勢
 
         Args:
             symbol: 股票代號
@@ -83,36 +90,72 @@ class StandaloneBacktester:
         dates = pd.bdate_range(start=start, end=end)
         n_bars = len(dates)
 
-        # 生成隨機價格（幾何布朗運動）
-        np.random.seed(hash(symbol + start_date) % 2**32)  # 決定性隨機
+        # 決定性隨機種子
+        np.random.seed(hash(symbol + start_date) % 2**32)
 
         # 基礎價格（$5-20）
         base_price = 10 + np.random.random() * 10
 
         closes = [base_price]
         for i in range(n_bars):
-            # 每天隨機變動 ±volatility
-            change = np.random.normal(0, volatility)
-            new_close = closes[-1] * (1 + change)
-            closes.append(max(new_close, 0.5))  # 最小 $0.50
+            # 動量趨勢 + 隨機波動
+            momentum = np.random.normal(0, 0.01)  # 小概率有趨勢
+            volatility_mult = 1 + np.random.normal(0, volatility)
+            new_close = closes[-1] * (1 + momentum + np.random.normal(0, volatility_mult * 0.02))
+            closes.append(max(new_close, 0.5))
 
-        closes = closes[1:]  # 移除初始值
+        closes = closes[1:]
 
         # 構建 OHLCV
         data = []
         for i, date in enumerate(dates):
             close = closes[i]
 
-            # 今日 gap up？
+            # ===== Open 價格 =====
             if i == 0 and gap_pct > 0:
+                # Gap up 案例
                 open_price = close * (1 - gap_pct / 100)
             else:
-                open_price = close * (1 + np.random.normal(0, 0.02))
+                # 正常情況：open 接近昨日 close（±1%）
+                prev_close = closes[i-1] if i > 0 else close
+                open_price = prev_close * (1 + np.random.normal(0, 0.01))
 
-            high = max(close, open_price) * (1 + abs(np.random.normal(0, 0.015)))
-            low = min(close, open_price) * (1 - abs(np.random.normal(0, 0.015)))
+            # ===== High / Low（更真實的日內波動）=====
+            # 波動幅度取決於今日是否是 gap up
+            if i == 0 and gap_pct > 0:
+                # Gap up 日通常有較大的日內波動
+                intraday_volatility = abs(np.random.normal(0, 0.04))
+            else:
+                # 普通日
+                intraday_volatility = abs(np.random.normal(0, 0.02))
 
-            volume = int(500000 + np.random.randint(-200000, 300000))
+            # High 和 Low 基於 Open 和 Close
+            price_range = [open_price, close]
+            base_high = max(price_range)
+            base_low = min(price_range)
+
+            high = base_high * (1 + intraday_volatility)
+            low = base_low * (1 - intraday_volatility)
+
+            # 偶爾出現極端波動（模擬低流動性或突發消息）
+            if np.random.random() < 0.1:  # 10% 機率
+                extreme_move = np.random.normal(0, 0.08)
+                if extreme_move > 0:
+                    high *= (1 + abs(extreme_move))
+                else:
+                    low *= (1 + extreme_move)
+
+            # ===== Volume =====
+            # 成交量與波動性相關
+            base_volume = 500000 + np.random.randint(-100000, 500000)
+            # Gap up 日通常成交量大
+            if i == 0 and gap_pct > 0:
+                volume = int(base_volume * (1 + gap_pct / 20))
+            else:
+                volume = int(base_volume)
+
+            # 確保 High > Low
+            high = max(high, low * 1.001)
 
             data.append({
                 'Date': date,
@@ -120,7 +163,7 @@ class StandaloneBacktester:
                 'High': high,
                 'Low': low,
                 'Close': close,
-                'Volume': volume,
+                'Volume': max(volume, 10000),  # 最小成交量
             })
 
         df = pd.DataFrame(data)
