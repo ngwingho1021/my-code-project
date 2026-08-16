@@ -9,7 +9,6 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.alpaca_client import AlpacaClient
 from core.data_fetcher import DataFetcher
 from config.settings import STRATEGY, ACCOUNT_RISK
 from backtest.portfolio import VirtualPortfolio
@@ -29,8 +28,7 @@ class Backtester:
         self.slippage_pct = slippage_pct
 
         self.portfolio = VirtualPortfolio(initial_capital)
-        self.alpaca = AlpacaClient()
-        self.data_fetcher = DataFetcher(self.alpaca)
+        self.data_fetcher = DataFetcher()
 
         self.ohlcv_data: Dict[str, pd.DataFrame] = {}  # symbol -> OHLCV DataFrame
         self.equity_curve: List[tuple] = []
