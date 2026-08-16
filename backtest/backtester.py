@@ -12,6 +12,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.data_fetcher import DataFetcher
 from config.settings import STRATEGY, ACCOUNT_RISK
 from backtest.portfolio import VirtualPortfolio
+from backtest.sample_data import generate_sample_bars
 
 
 class Backtester:
@@ -61,8 +62,14 @@ class Backtester:
             return df
 
         except Exception as e:
-            print(f"❌ 加載 {symbol} 數據失敗: {e}")
-            return pd.DataFrame()
+            print(f"⚠️  加載 {symbol} 數據失敗: {e}")
+            print(f"📊 使用示例數據進行回測...")
+
+            # 使用示例數據作為備選
+            df = generate_sample_bars(symbol, start_date, end_date)
+            self.ohlcv_data[symbol] = df
+            print(f"✅ {symbol}: {len(df)} 根模擬K線 ({df.index[0]} to {df.index[-1]})")
+            return df
 
     def apply_slippage(self, price: float, is_buy: bool = True) -> float:
         """模擬滑點"""
