@@ -9,6 +9,7 @@
 """
 import time
 import pandas as pd
+import threading
 
 from config.settings import TRADING_HOURS, SCANNER
 from core.ibkr_client import IBKRClient
@@ -24,6 +25,7 @@ log = get_logger("main")
 
 SCAN_INTERVAL_SEC = 60
 MANAGE_INTERVAL_SEC = 5
+LOOP_HEARTBEAT_TIMEOUT_SEC = 30  # 30 秒內要有一個心跳，否則判斷機械人卡住
 
 
 def bars_to_df(bars) -> pd.DataFrame:
@@ -61,24 +63,58 @@ class TradingBot:
 
     def run_loop(self):
         last_scan = 0
-        while True:
-            now = time.time()
-            if now - last_scan > SCAN_INTERVAL_SEC:
-                self.scan_for_candidates()
-                last_scan = now
+        consecutive_errors = 0
+        last_heartbeat = time.time()
 
-            self.manage_open_positions()
-            self.evaluate_entries()
-            time.sleep(MANAGE_INTERVAL_SEC)
+        # 啟動獨立的心跳監控線程（檢測僵死）
+        def heartbeat_monitor():
+            while True:
+                time.sleep(LOOP_HEARTBEAT_TIMEOUT_SEC)
+                if time.time() - last_heartbeat > LOOP_HEARTBEAT_TIMEOUT_SEC:
+                    log.warning(f"⚠️ 機械人可能卡住（>30秒冇心跳），強烈建議 Ctrl+C 重啟")
+
+        monitor_thread = threading.Thread(target=heartbeat_monitor, daemon=True)
+        monitor_thread.start()
+
+        while True:
+            try:
+                now = time.time()
+                if now - last_scan > SCAN_INTERVAL_SEC:
+                    self.scan_for_candidates()
+                    last_scan = now
+
+                self.manage_open_positions()
+                self.evaluate_entries()
+                consecutive_errors = 0  # 重設錯誤計數
+                last_heartbeat = time.time()  # 更新心跳
+                time.sleep(MANAGE_INTERVAL_SEC)
+            except Exception as e:
+                consecutive_errors += 1
+                log.error(f"主迴圈出錯 (#{consecutive_errors}): {e}")
+                if consecutive_errors >= 5:
+                    log.error("連續 5 次出錯，機械人停止運行以避免進一步損害")
+                    raise
+                last_heartbeat = time.time()
+                time.sleep(MANAGE_INTERVAL_SEC * 2)  # 出錯時加倍等待時間
 
     # ------------------------------------------------------------------
     def scan_for_candidates(self):
+        # 防止開太多位：達到上限就唔掃
+        from config.settings import ACCOUNT_RISK
+        if len(self.watchlist) >= ACCOUNT_RISK.max_concurrent_positions:
+            return
+
         scanner = MomentumScanner(self.ib)
         symbols = scanner.scan_gap_up_candidates()
         results = scanner.enrich_and_filter(symbols)
 
         news_checker = NewsChecker(self.ib)
         for r in results:
+            # HARD LIMIT: 達到上限就停止掃
+            if len(self.watchlist) >= ACCOUNT_RISK.max_concurrent_positions:
+                log.warning(f"已達到最多並行持倉 ({ACCOUNT_RISK.max_concurrent_positions})，停止掃描")
+                break
+
             if r.symbol in self.watchlist:
                 continue
             contract = self.client.make_stock(r.symbol)

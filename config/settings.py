@@ -19,12 +19,14 @@ PAPER_TRADING = True   # 一定要保持 True，直至你完全信得過個系�
 class AccountRisk:
     account_size: float = 5000.0
     max_trades_per_day: int = 12
-    max_concurrent_positions: int = 3
+    max_concurrent_positions: int = 3  # HARD LIMIT: 只開 3 個位
     max_loss_per_trade: float = 100.0
     max_loss_per_day: float = 300.0
     max_loss_per_week: float = 800.0
     # 單一持倉最多用幾多百分比本金（避免一注獨大）
     max_position_pct_of_account: float = 0.35
+    # 防止 scanner 發瘋：只掃描呢啲特定股票
+    scan_only_symbols: list = None  # None = 動態掃描; 或設做 ['NVDA','AMD',...] 用手控名單
 
 
 @dataclass
