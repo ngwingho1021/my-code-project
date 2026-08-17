@@ -1,10 +1,10 @@
 """
-【重構版本】完整交易機械人
+【Small-Cap Momentum Trader - 重構版本】完整交易機械人
 核心：訂單狀態機 + 持倉管理 + 5支柱篩選 + 完整風控
 
 流程：
   1. 連接 IBKR
-  2. 每 60 秒掃描一次 5 支柱股票
+  2. 每 60 秒掃描一次 5 支柱小市值股票
   3. 每 5 秒監控現有持倉（進場/止盈/止蝕）
   4. 記錄所有交易
 """
@@ -43,7 +43,7 @@ class TradingEngine:
         """啟動機械人"""
         try:
             log.info("=" * 60)
-            log.info("【交易機械人啟動】Ross Cameron Gap-Up Strategy")
+            log.info("【Small-Cap Momentum Trader 啟動】")
             log.info("=" * 60)
 
             # 連接 IBKR

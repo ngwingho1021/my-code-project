@@ -1,4 +1,4 @@
-# 【完全重構】交易機械人架構升級指南
+# 【Small-Cap Momentum Trader】完全重構架構升級指南
 
 ## ✅ 重構完成
 
@@ -26,7 +26,7 @@
 每個訂單有明確的生命週期，避免重複下單或遺漏。
 
 ### 2. **5支柱篩選器** (`core/stock_selector.py`)
-實現 Ross Cameron 策略的 5 個篩選條件
+Small-Cap Momentum Trader 的 5 個篩選條件
 
 ```
 支柱 1: Gap Up ≥ 5%              (開盤跳空)
@@ -122,10 +122,10 @@ python main_v2.py
 
 **預期看到的日誌**（前 30 秒）：
 ```
-【交易機械人啟動】Ross Cameron Gap-Up Strategy
+【Small-Cap Momentum Trader 啟動】
 ✅ IBKR 連線成功
 帳戶: DUR065821
-掃描 5 支柱股票...
+掃描 5 支柱小市值股票...
 機械人已啟動，等待市場信號...
 
 【風險管理狀態】

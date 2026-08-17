@@ -1,5 +1,5 @@
 """
-Stock Selection with 5 Pillars (Ross Cameron)
+Stock Selection with 5 Pillars (Small-Cap Momentum Trader)
 支柱 1: Gap Up (開盤跳空 >= 5%)
 支柱 2: 新聞催化劑
 支柱 3: Low Float (流通股本 < 20M)

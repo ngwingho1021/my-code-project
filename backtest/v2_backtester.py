@@ -105,7 +105,7 @@ class V2Backtester:
             return
 
         log.info("\n" + "=" * 70)
-        log.info("【Ross Cameron 5支柱策略 - 回測結果】")
+        log.info("【Small-Cap Momentum Trader - 回測結果】")
         log.info("=" * 70)
         log.info(f"總交易數: {metrics['total_trades']}")
         log.info(f"勝場/敗場: {metrics['winners']}/{metrics['losers']}")
