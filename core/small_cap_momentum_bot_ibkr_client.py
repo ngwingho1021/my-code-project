@@ -150,7 +150,7 @@ class IBKRClient:
             symbols = []
             if results:
                 for result in results[:20]:  # 限制前 20 個結果
-                    contract = result.contract
+                    contract = result.contractDetails.contract
                     if contract and contract.symbol:
                         symbols.append(contract.symbol)
 
