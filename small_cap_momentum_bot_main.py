@@ -21,7 +21,6 @@ from core.small_cap_momentum_bot_ibkr_client import IBKRClient
 from core.small_cap_momentum_bot_order_state_machine import OrderStateMachine, PositionState
 from core.small_cap_momentum_bot_position_manager import PositionManager
 from core.small_cap_momentum_bot_stock_selector import StockSelector
-from small_cap_momentum_bot_webhook_receiver import start_webhook_server
 from utils.logger import get_logger
 
 log = get_logger("main")
@@ -88,10 +87,6 @@ class TradingEngine:
             self.ib = self.ibkr.connect()
             log.info(f"✅ 已連接 IBKR")
 
-            # 啟動 Webhook 接收器
-            start_webhook_server(host="127.0.0.1", port=5000, engine=self)
-            log.info("✅ Webhook 接收器已啟動 - TradingView 實時信號已就緒")
-
             self.running = True
             self.run_loop()
 
@@ -146,20 +141,70 @@ class TradingEngine:
             log.warning(f"非交易時間 ({self.get_time_status()})，跳過掃描")
             return
 
-        # TODO: 在實際應用中，這裡應該連接到 IBKR Scanner 或 QuoteApi
-        # 目前只是展示結構
-        log.info(f"掃描 5 支柱股票... ({self.get_time_status()})")
+        log.info(f"📊 掃描 IBKR 間隔上升股票... ({self.get_time_status()})")
 
-        # 示例：假設從某個來源獲得股票清單
-        # 在實際中應該來自 IBKR Scanner API
+        # 使用 IBKR 掃描器尋找開盤跳空股票
+        symbols = self.ibkr.scan_for_gap_up_stocks(
+            min_gap_pct=ACCOUNT_RISK.scanner_criteria.get("gap_up_pct_min", 5.0),
+            min_price=ACCOUNT_RISK.scanner_criteria.get("price_min", 2.0),
+            max_price=ACCOUNT_RISK.scanner_criteria.get("price_max", 20.0)
+        )
+
+        if not symbols:
+            log.info("🔍 沒有找到符合條件的股票")
+            return
+
         candidates = []
+        for symbol in symbols:
+            try:
+                contract = self.ibkr.make_stock(symbol)
+                contract = self.ibkr.qualify_contract(contract)
+
+                # 獲取市場數據
+                ticker = self.ibkr.get_market_data(contract, timeout=1)
+                if not ticker:
+                    continue
+
+                # 獲取歷史數據計算間隔
+                bars = self.ibkr.get_historical_data(contract, duration="1 D", bar_size="1 day")
+                if len(bars) < 2:
+                    continue
+
+                prev_close = bars[-2].close
+                current_price = ticker.last or ticker.close
+
+                if current_price <= 0 or prev_close <= 0:
+                    continue
+
+                gap_pct = ((current_price - prev_close) / prev_close) * 100
+                today_volume = ticker.volume or 0
+                avg_volume = 1000000  # 簡化假設
+
+                candidate = self.stock_selector.evaluate(
+                    symbol=symbol,
+                    current_price=current_price,
+                    prev_close=prev_close,
+                    today_volume=today_volume,
+                    avg_volume=avg_volume,
+                    float_shares=None,  # IBKR 掃描器不提供
+                    has_news=False
+                )
+
+                if candidate:
+                    candidates.append(candidate)
+
+            except Exception as e:
+                log.debug(f"評估 {symbol} 失敗: {e}")
 
         # 篩選符合 5 支柱的股票
         filtered = self.stock_selector.filter_candidates(candidates, strict_mode=False)
         log.info(self.stock_selector.get_summary(filtered))
 
-        # 更新監控名單
-        for candidate in filtered[:ACCOUNT_RISK.max_concurrent_positions]:
+        # 更新監控名單（檢查併發限制）
+        active_positions = self.order_sm.get_active_positions()
+        available_slots = ACCOUNT_RISK.max_concurrent_positions - len(active_positions)
+
+        for candidate in filtered[:available_slots]:
             if candidate.symbol not in self.watchlist:
                 try:
                     contract = self.ibkr.make_stock(candidate.symbol)

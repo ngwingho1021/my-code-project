@@ -2,7 +2,7 @@
 統一管理同 IBKR TWS / Gateway 嘅連線。
 用 ib_async（原 ib_insync 嘅維護分支）。
 """
-from ib_async import IB, Stock, LimitOrder, StopLimitOrder
+from ib_async import IB, Stock, LimitOrder, StopLimitOrder, ScannerSubscription
 
 from config.settings import IB_HOST, IB_PORT, IB_CLIENT_ID, PAPER_TRADING
 from utils.logger import get_logger
@@ -126,4 +126,36 @@ class IBKRClient:
             return list(bars) if bars else []
         except Exception as e:
             log.error(f"獲取歷史數據失敗: {e}")
+            return []
+
+    def scan_for_gap_up_stocks(self, min_gap_pct: float = 5.0, min_price: float = 2.0, max_price: float = 20.0):
+        """IBKR 掃描器 - 尋找開盤跳空股票"""
+        try:
+            # 建立掃描器訂閱
+            sub = ScannerSubscription(
+                instrument="STK",
+                locationCode="STK.US.MAJOR",
+                scanCode="TOP_PERC_GAIN"  # 最大漲幅
+            )
+
+            # 設定掃描參數
+            sub.abovePrice = min_price
+            sub.belowPrice = max_price
+
+            # 發送掃描請求
+            results = self.ib.reqScannerData(sub)
+            log.info(f"掃描結果: {len(results) if results else 0} 隻股票")
+
+            # 提取股票代碼
+            symbols = []
+            if results:
+                for result in results[:20]:  # 限制前 20 個結果
+                    contract = result.contract
+                    if contract and contract.symbol:
+                        symbols.append(contract.symbol)
+
+            return symbols
+
+        except Exception as e:
+            log.error(f"掃描器失敗: {e}")
             return []
