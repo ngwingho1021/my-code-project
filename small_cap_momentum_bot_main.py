@@ -20,7 +20,7 @@ from datetime import datetime, time as dt_time
 from typing import Optional
 import pytz
 
-from config.settings import TRADING_HOURS, ACCOUNT_RISK
+from config.settings import TRADING_HOURS, ACCOUNT_RISK, SCANNER
 from core.small_cap_momentum_bot_ibkr_client import IBKRClient
 from core.small_cap_momentum_bot_order_state_machine import OrderStateMachine, PositionState
 from core.small_cap_momentum_bot_position_manager import PositionManager
@@ -149,9 +149,9 @@ class TradingEngine:
 
         # 使用 IBKR 掃描器尋找開盤跳空股票
         symbols = self.ibkr.scan_for_gap_up_stocks(
-            min_gap_pct=ACCOUNT_RISK.scanner_criteria.get("gap_up_pct_min", 5.0),
-            min_price=ACCOUNT_RISK.scanner_criteria.get("price_min", 2.0),
-            max_price=ACCOUNT_RISK.scanner_criteria.get("price_max", 20.0)
+            min_gap_pct=SCANNER.gap_up_pct_min,
+            min_price=SCANNER.price_min,
+            max_price=SCANNER.price_max
         )
 
         if not symbols:
