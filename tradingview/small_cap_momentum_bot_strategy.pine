@@ -87,9 +87,7 @@ hline(minGapPct, "Min Gap %", color=color.gray, linestyle=hline.style_dashed)
 
 // 資訊面板
 f_info() =>
-    "Gap: " + str.tostring(gapPct, "#.##") + "% | " +
-    "RVOL: " + str.tostring(rvol, "#.##") + "x | " +
-    "Vol: " + str.tostring(volume, "0")
+    "Gap: " + str.tostring(gapPct, "#.##") + "% | RVOL: " + str.tostring(rvol, "#.##") + "x | Vol: " + str.tostring(volume, "0")
 
 label.new(bar_index, high, f_info(),
          xloc=xloc.bar_index, yloc=yloc.abovebar,
