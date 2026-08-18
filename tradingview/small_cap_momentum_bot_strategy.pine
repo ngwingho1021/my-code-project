@@ -70,9 +70,7 @@ if allPillars and barstate.isclose
     gapStr = str.tostring(gapPct, "#.##")
     rvolStr = str.tostring(rvol, "#.##")
     volumeStr = str.tostring(volume, "0")
-
     alertMsg = symbol + "|ENTRY|" + entryPrice + "|GAP=" + gapStr + "%|RVOL=" + rvolStr + "x|VOL=" + volumeStr
-
     alert(alertMsg, alert.freq_once_per_bar_close)
     strategy.entry("Long", strategy.long)
 
