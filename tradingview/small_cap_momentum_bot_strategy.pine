@@ -64,7 +64,7 @@ allPillars = pillar1 and pillar2 and pillar3 and pillar4 and pillar5
 // Entry Signal
 // ========================================================================
 
-if allPillars and barstate.isclose
+if allPillars and barstate.isconfirmed
     symbol = syminfo.tickerid
     entryPrice = str.tostring(close, "#.##")
     gapStr = str.tostring(gapPct, "#.##")
