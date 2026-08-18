@@ -17,10 +17,10 @@ from typing import Optional
 import pytz
 
 from config.settings import TRADING_HOURS, ACCOUNT_RISK
-from core.ibkr_client import IBKRClient
-from core.order_state_machine import OrderStateMachine, PositionState
-from core.position_manager import PositionManager
-from core.stock_selector import StockSelector
+from core.small_cap_momentum_bot_ibkr_client import IBKRClient
+from core.small_cap_momentum_bot_order_state_machine import OrderStateMachine, PositionState
+from core.small_cap_momentum_bot_position_manager import PositionManager
+from core.small_cap_momentum_bot_stock_selector import StockSelector
 from utils.logger import get_logger
 
 log = get_logger("main")
