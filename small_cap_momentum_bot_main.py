@@ -10,6 +10,10 @@
   4. 記錄所有交易
   5. 16:00 後停止新進場，只管理現有持倉
 """
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 import time
 import pandas as pd
 from datetime import datetime, time as dt_time
