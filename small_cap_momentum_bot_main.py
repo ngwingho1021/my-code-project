@@ -21,6 +21,7 @@ from core.small_cap_momentum_bot_ibkr_client import IBKRClient
 from core.small_cap_momentum_bot_order_state_machine import OrderStateMachine, PositionState
 from core.small_cap_momentum_bot_position_manager import PositionManager
 from core.small_cap_momentum_bot_stock_selector import StockSelector
+from small_cap_momentum_bot_webhook_receiver import start_webhook_server
 from utils.logger import get_logger
 
 log = get_logger("main")
@@ -86,6 +87,10 @@ class TradingEngine:
             # 連接 IBKR
             self.ib = self.ibkr.connect()
             log.info(f"✅ 已連接 IBKR")
+
+            # 啟動 Webhook 接收器
+            start_webhook_server(host="127.0.0.1", port=5000, engine=self)
+            log.info("✅ Webhook 接收器已啟動 - TradingView 實時信號已就緒")
 
             self.running = True
             self.run_loop()

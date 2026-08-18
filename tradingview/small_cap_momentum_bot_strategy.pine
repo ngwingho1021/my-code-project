@@ -1,0 +1,98 @@
+//@version=5
+strategy("Small-Cap Momentum Bot - 5 Pillars",
+         shorttitle="SCMB 5P",
+         overlay=true,
+         pyramiding=1)
+
+// ========================================================================
+// Small-Cap Momentum Trader - Pine Script Strategy
+// 檢測 5 支柱條件並通過 Webhook 發送信號
+// ========================================================================
+
+// ========================================================================
+// 使用者設定
+// ========================================================================
+
+// 支柱 1: Gap Up
+minGapPct = input.float(5.0, title="Min Gap % (Pillar 1)", minval=0, maxval=50)
+
+// 支柱 2: RVOL (相對成交量)
+minRVOL = input.float(2.0, title="Min RVOL (Pillar 2)", minval=1, maxval=10)
+rvolLength = input.int(20, title="RVOL Lookback Days", minval=5, maxval=100)
+
+// 支柱 3: Low Float (流通股本) - 無法直接在 Pine 檢測，使用手動輸入
+userFloat = input.bool(true, title="Float < 20M (Pillar 3) - Manual Check")
+
+// 支柱 4: 股價範圍
+minPrice = input.float(2.0, title="Min Price (Pillar 4)", minval=0.1, maxval=100)
+maxPrice = input.float(20.0, title="Max Price (Pillar 4)", minval=1, maxval=1000)
+
+// 支柱 5: 最小成交量
+minVolume = input.int(100000, title="Min Volume (Pillar 5)", minval=10000)
+
+// ========================================================================
+// 計算指標
+// ========================================================================
+
+// 支柱 1: 計算 Gap Up %
+prevClose = request.security(syminfo.tickerid, "D", close[1])
+gapPct = na(prevClose) ? 0 : ((open - prevClose) / prevClose) * 100
+
+// 支柱 4: 檢查股價範圍
+priceOK = close >= minPrice and close <= maxPrice
+
+// 支柱 5: 檢查成交量
+volumeOK = volume >= minVolume
+
+// 計算平均成交量
+avgVolume = ta.sma(volume, rvolLength)
+rvol = na(avgVolume) or avgVolume == 0 ? 0 : volume / avgVolume
+
+// ========================================================================
+// 進場條件（5 支柱）
+// ========================================================================
+
+pillar1 = gapPct >= minGapPct                   // Gap Up
+pillar2 = rvol >= minRVOL                       // RVOL High
+pillar3 = userFloat                             // Float < 20M (手動)
+pillar4 = priceOK                               // 股價範圍
+pillar5 = volumeOK                              // 成交量
+
+allPillars = pillar1 and pillar2 and pillar3 and pillar4 and pillar5
+
+// ========================================================================
+// Entry Signal
+// ========================================================================
+
+if allPillars and barstate.isclose
+    symbol = syminfo.tickerid
+    entryPrice = str.tostring(close, "#.##")
+    gapStr = str.tostring(gapPct, "#.##")
+    rvolStr = str.tostring(rvol, "#.##")
+    volumeStr = str.tostring(volume, "0")
+
+    alertMsg = symbol + "|ENTRY|" + entryPrice + "|GAP=" + gapStr + "%|RVOL=" + rvolStr + "x|VOL=" + volumeStr
+
+    alert(alertMsg, alert.freq_once_per_bar_close)
+    strategy.entry("Long", strategy.long)
+
+// ========================================================================
+// 視覺化
+// ========================================================================
+
+// 進場信號視覺化
+plotshape(allPillars, title="Entry Signal", style=shape.labelup, location=location.belowbar,
+          color=color.new(color.green, 0), textcolor=color.white, text="5P ENTRY")
+
+// Gap Up 線
+hline(minGapPct, "Min Gap %", color=color.gray, linestyle=hline.style_dashed)
+
+// 資訊面板
+f_info() =>
+    "Gap: " + str.tostring(gapPct, "#.##") + "% | " +
+    "RVOL: " + str.tostring(rvol, "#.##") + "x | " +
+    "Vol: " + str.tostring(volume, "0")
+
+label.new(bar_index, high, f_info(),
+         xloc=xloc.bar_index, yloc=yloc.abovebar,
+         bgcolor=color.new(color.blue, 80), textcolor=color.white, size=size.small)
