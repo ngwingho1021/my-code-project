@@ -129,32 +129,38 @@ class IBKRClient:
             return []
 
     def scan_for_gap_up_stocks(self, min_gap_pct: float = 5.0, min_price: float = 2.0, max_price: float = 20.0):
-        """IBKR 掃描器 - 尋找開盤跳空股票"""
+        """IBKR 掃描器 - 尋找開盤跳空股票，返回合約列表"""
         try:
-            # 建立掃描器訂閱
             sub = ScannerSubscription(
                 instrument="STK",
                 locationCode="STK.US.MAJOR",
-                scanCode="TOP_PERC_GAIN"  # 最大漲幅
+                scanCode="TOP_PERC_GAIN"
             )
 
-            # 設定掃描參數
             sub.abovePrice = min_price
             sub.belowPrice = max_price
 
-            # 發送掃描請求
             results = self.ib.reqScannerData(sub)
             log.info(f"掃描結果: {len(results) if results else 0} 隻股票")
 
-            # 提取股票代碼
-            symbols = []
+            scan_results = []
             if results:
-                for result in results[:20]:  # 限制前 20 個結果
-                    contract = result.contractDetails.contract
-                    if contract and contract.symbol:
-                        symbols.append(contract.symbol)
+                for result in results[:20]:
+                    try:
+                        cd = result.contractDetails
+                        contract = cd.contract
+                        if contract and contract.symbol:
+                            scan_results.append({
+                                "symbol": contract.symbol,
+                                "contract": contract
+                            })
+                    except Exception as e:
+                        continue
 
-            return symbols
+            if scan_results:
+                log.info(f"✅ 找到: {[r['symbol'] for r in scan_results[:10]]}")
+
+            return scan_results
 
         except Exception as e:
             log.error(f"掃描器失敗: {e}")

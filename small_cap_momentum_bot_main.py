@@ -147,76 +147,41 @@ class TradingEngine:
 
         log.info(f"📊 掃描 IBKR 間隔上升股票... ({self.get_time_status()})")
 
-        # 使用 IBKR 掃描器尋找開盤跳空股票
-        symbols = self.ibkr.scan_for_gap_up_stocks(
+        # 使用 IBKR 掃描器尋找開盤跳空股票（直接返回合約）
+        scan_results = self.ibkr.scan_for_gap_up_stocks(
             min_gap_pct=SCANNER.gap_up_pct_min,
             min_price=SCANNER.price_min,
             max_price=SCANNER.price_max
         )
 
-        if not symbols:
+        if not scan_results:
             log.info("🔍 沒有找到符合條件的股票")
             return
 
-        candidates = []
-        for symbol in symbols:
-            try:
-                contract = self.ibkr.make_stock(symbol)
-                contract = self.ibkr.qualify_contract(contract)
-
-                # 獲取市場數據
-                ticker = self.ibkr.get_market_data(contract, timeout=1)
-                if not ticker:
-                    continue
-
-                # 獲取歷史數據計算間隔
-                bars = self.ibkr.get_historical_data(contract, duration="1 D", bar_size="1 day")
-                if len(bars) < 2:
-                    continue
-
-                prev_close = bars[-2].close
-                current_price = ticker.last or ticker.close
-
-                if current_price <= 0 or prev_close <= 0:
-                    continue
-
-                gap_pct = ((current_price - prev_close) / prev_close) * 100
-                today_volume = ticker.volume or 0
-                avg_volume = 1000000  # 簡化假設
-
-                candidate = self.stock_selector.evaluate(
-                    symbol=symbol,
-                    current_price=current_price,
-                    prev_close=prev_close,
-                    today_volume=today_volume,
-                    avg_volume=avg_volume,
-                    float_shares=None,  # IBKR 掃描器不提供
-                    has_news=False
-                )
-
-                if candidate:
-                    candidates.append(candidate)
-
-            except Exception as e:
-                log.debug(f"評估 {symbol} 失敗: {e}")
-
-        # 篩選符合 5 支柱的股票
-        filtered = self.stock_selector.filter_candidates(candidates, strict_mode=False)
-        log.info(self.stock_selector.get_summary(filtered))
-
-        # 更新監控名單（檢查併發限制）
+        # 掃描器已篩選：TOP_PERC_GAIN + 價格範圍，直接加入監控
         active_positions = self.order_sm.get_active_positions()
         available_slots = ACCOUNT_RISK.max_concurrent_positions - len(active_positions)
 
-        for candidate in filtered[:available_slots]:
-            if candidate.symbol not in self.watchlist:
-                try:
-                    contract = self.ibkr.make_stock(candidate.symbol)
-                    contract = self.ibkr.qualify_contract(contract)
-                    self.watchlist[candidate.symbol] = contract
-                    log.info(f"✅ 加入監控: {candidate.symbol}")
-                except Exception as e:
-                    log.warning(f"無法加入 {candidate.symbol}: {e}")
+        if available_slots <= 0:
+            log.info(f"已達最大持倉數 ({ACCOUNT_RISK.max_concurrent_positions})，跳過")
+            return
+
+        added = 0
+        for result in scan_results:
+            if added >= available_slots:
+                break
+
+            symbol = result["symbol"]
+            contract = result["contract"]
+
+            if symbol in self.watchlist:
+                continue
+
+            self.watchlist[symbol] = contract
+            log.info(f"✅ 加入監控: {symbol}")
+            added += 1
+
+        log.info(f"監控名單: {list(self.watchlist.keys())} ({len(self.watchlist)} 隻)")
 
     def manage_open_positions(self):
         """監控現有持倉 - 檢查進場/止盈/止蝕"""
