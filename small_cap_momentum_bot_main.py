@@ -32,6 +32,8 @@ trade_log = get_logger("trades")
 
 SCAN_INTERVAL_SEC = 60
 MANAGE_INTERVAL_SEC = 5
+MAX_WATCHLIST_SIZE = 5
+STOP_LOSS_PCT = 0.05
 
 # 交易時間（EST 時區）
 PREMARKET_START = dt_time(4, 0)      # 04:00
@@ -56,19 +58,16 @@ class TradingEngine:
     def is_trading_hours(self) -> bool:
         """檢查係咪交易時間（Pre-Market + Market Hours）"""
         now = datetime.now(EST).time()
-        # 04:00 - 16:00 EST（Pre-Market + Market Hours）
         return PREMARKET_START <= now < MARKET_CLOSE
 
     def is_market_hours(self) -> bool:
         """檢查係咪市場時間（不包括 Pre-Market）"""
         now = datetime.now(EST).time()
-        # 09:30 - 16:00 EST
         return MARKET_OPEN <= now < MARKET_CLOSE
 
     def is_premarket_hours(self) -> bool:
         """檢查係咪盤前時間"""
         now = datetime.now(EST).time()
-        # 04:00 - 09:30 EST
         return PREMARKET_START <= now < MARKET_OPEN
 
     def get_time_status(self) -> str:
@@ -114,10 +113,14 @@ class TradingEngine:
                 now = time.time()
                 time_status = self.get_time_status()
 
-                # 每次時間狀態改變時打印
                 if time_status != last_time_status:
                     log.info(f"⏰ 時間狀態: {time_status}")
                     last_time_status = time_status
+
+                    # 每日重置：新的交易日清空監控名單
+                    if time_status.startswith("Pre-Market"):
+                        self.watchlist.clear()
+                        log.info("🔄 新交易日，清空監控名單")
 
                 # 只在交易時間掃描新機會
                 if self.is_trading_hours():
@@ -125,7 +128,6 @@ class TradingEngine:
                         self.scan_and_update_watchlist()
                         last_scan = now
                 else:
-                    # 非交易時間，不掃描新機會，但仍管理現有持倉（直到全部平倉）
                     if self.order_sm.get_active_positions():
                         log.info("🔔 非交易時間，但仍有開放持倉，繼續管理...")
 
@@ -136,18 +138,31 @@ class TradingEngine:
 
             except Exception as e:
                 log.error(f"主迴圈出錯: {e}")
+                import traceback
+                traceback.print_exc()
                 time.sleep(MANAGE_INTERVAL_SEC * 2)
 
     def scan_and_update_watchlist(self):
         """掃描 5 支柱股票，更新監控名單（僅在交易時間）"""
-        # 雙重檢查時間
         if not self.is_trading_hours():
             log.warning(f"非交易時間 ({self.get_time_status()})，跳過掃描")
             return
 
+        # 檢查是否還有空位
+        active_positions = self.order_sm.get_active_positions()
+        current_watching = len(self.watchlist)
+        current_positions = len(active_positions)
+
+        if current_positions >= ACCOUNT_RISK.max_concurrent_positions:
+            log.info(f"已達最大持倉數 ({current_positions}/{ACCOUNT_RISK.max_concurrent_positions})，跳過掃描")
+            return
+
+        if current_watching >= MAX_WATCHLIST_SIZE:
+            log.info(f"監控名單已滿 ({current_watching}/{MAX_WATCHLIST_SIZE})，跳過掃描")
+            return
+
         log.info(f"📊 掃描 IBKR 間隔上升股票... ({self.get_time_status()})")
 
-        # 使用 IBKR 掃描器尋找開盤跳空股票（直接返回合約）
         scan_results = self.ibkr.scan_for_gap_up_stocks(
             min_gap_pct=SCANNER.gap_up_pct_min,
             min_price=SCANNER.price_min,
@@ -158,23 +173,29 @@ class TradingEngine:
             log.info("🔍 沒有找到符合條件的股票")
             return
 
-        # 掃描器已篩選：TOP_PERC_GAIN + 價格範圍，直接加入監控
-        active_positions = self.order_sm.get_active_positions()
-        available_slots = ACCOUNT_RISK.max_concurrent_positions - len(active_positions)
-
-        if available_slots <= 0:
-            log.info(f"已達最大持倉數 ({ACCOUNT_RISK.max_concurrent_positions})，跳過")
-            return
-
+        available_slots = MAX_WATCHLIST_SIZE - current_watching
         added = 0
+
         for result in scan_results:
             if added >= available_slots:
                 break
 
-            symbol = result["symbol"]
-            contract = result["contract"]
+            # 兼容字符串或字典格式
+            if isinstance(result, dict):
+                symbol = result["symbol"]
+                contract = result["contract"]
+            else:
+                symbol = str(result)
+                contract = self.ibkr.make_stock(symbol)
+                try:
+                    contract = self.ibkr.qualify_contract(contract)
+                except Exception:
+                    continue
 
             if symbol in self.watchlist:
+                continue
+
+            if self.order_sm.get_position(symbol):
                 continue
 
             self.watchlist[symbol] = contract
@@ -190,50 +211,116 @@ class TradingEngine:
                 pos = self.order_sm.get_position(symbol)
 
                 if pos is None:
-                    # 檢查進場條件
                     self.check_entry_signal(symbol, contract)
                 elif pos.state == PositionState.ENTRY_FILLED:
-                    # 監控現有持倉
                     self.check_exit_signal(symbol, contract, pos)
 
             except Exception as e:
                 log.error(f"{symbol} 監控出錯: {e}")
 
     def check_entry_signal(self, symbol: str, contract) -> bool:
-        """檢查進場信號"""
-        # 簡化示例 - 實際應該有完整的技術分析
-        # 這裡只展示結構
-        return False
+        """檢查進場信號 - 掃描器已篩選，嘗試進場"""
+        if not self.is_trading_hours():
+            return False
+
+        # 檢查風控
+        if not self.position_mgr.can_open_position(symbol):
+            return False
+
+        # 嘗試獲取價格快照
+        try:
+            ticker = self.ibkr.get_market_data(contract, timeout=2)
+
+            if ticker is None:
+                log.debug(f"{symbol}: 無法獲取市場數據")
+                return False
+
+            # 嘗試不同的價格來源
+            price = None
+            for attr in ['last', 'close', 'bid', 'ask']:
+                val = getattr(ticker, attr, None)
+                if val is not None and val > 0:
+                    price = float(val)
+                    break
+
+            if price is None or price <= 0:
+                log.debug(f"{symbol}: 無有效價格")
+                return False
+
+            # 價格範圍檢查
+            if price < SCANNER.price_min or price > SCANNER.price_max:
+                log.debug(f"{symbol}: 價格 ${price:.2f} 超出範圍")
+                return False
+
+            # 計算止蝕價格（5% 止損）
+            stop_price = round(price * (1 - STOP_LOSS_PCT), 2)
+
+            log.info(f"🎯 發現進場機會: {symbol} @ ${price:.2f}, 止蝕 @ ${stop_price:.2f}")
+
+            # 執行進場
+            return self.execute_entry(symbol, contract, price, stop_price)
+
+        except Exception as e:
+            log.debug(f"{symbol}: 進場檢查失敗: {e}")
+            return False
 
     def check_exit_signal(self, symbol: str, contract, pos):
-        """檢查離場信號"""
-        # 監控止盈/止蝕
-        pass
+        """檢查離場信號 - 監控止盈/止蝕"""
+        try:
+            ticker = self.ibkr.get_market_data(contract, timeout=1)
+            if ticker is None:
+                return
+
+            price = None
+            for attr in ['last', 'close', 'bid']:
+                val = getattr(ticker, attr, None)
+                if val is not None and val > 0:
+                    price = float(val)
+                    break
+
+            if price is None or price <= 0:
+                return
+
+            entry_price = pos.entry_price
+            stop_price = pos.initial_stop
+
+            # 止蝕觸發
+            if price <= stop_price:
+                log.info(f"🛑 止蝕觸發: {symbol} @ ${price:.2f} (止蝕線: ${stop_price:.2f})")
+                self.execute_exit(symbol, contract, pos, price, "stop_loss")
+                return
+
+            # 止盈觸發：2R 目標
+            risk = entry_price - stop_price
+            target_2r = entry_price + (risk * 2)
+
+            if price >= target_2r:
+                log.info(f"🎉 止盈觸發 (2R): {symbol} @ ${price:.2f} (目標: ${target_2r:.2f})")
+                self.execute_exit(symbol, contract, pos, price, "take_profit_2r")
+                return
+
+        except Exception as e:
+            log.error(f"{symbol} 離場檢查失敗: {e}")
 
     def execute_entry(self, symbol: str, contract, entry_price: float, stop_price: float):
         """執行進場（只在交易時間進場）"""
-        # 檢查交易時間
         if not self.is_trading_hours():
             log.warning(f"非交易時間 ({self.get_time_status()})，無法進場")
             return False
 
         log.info(f"【進場信號】{symbol} @ ${entry_price:.2f}, 止蝕 @ ${stop_price:.2f} ({self.get_time_status()})")
 
-        # 計算持倉大小
         position_size = self.position_mgr.calculate_position_size(entry_price, stop_price)
 
         if position_size <= 0:
             log.warning(f"持倉大小無效: {position_size}")
             return False
 
-        # 檢查風控
         if not self.position_mgr.can_open_position(symbol):
             log.warning(f"無法開倉 {symbol}")
             return False
 
-        # 創建訂單
         try:
-            # 下買單
             buy_order = self.order_sm.create_order(
                 symbol, "BUY", position_size, "LIMIT",
                 limit_price=entry_price
@@ -241,13 +328,13 @@ class TradingEngine:
 
             trade = self.ibkr.place_buy_order(contract, position_size, entry_price)
             if trade:
-                # 創建持倉
                 pos = self.order_sm.create_position(symbol, entry_price, position_size, stop_price)
                 pos.mark_entered(buy_order.order_id)
 
-                # 記錄
                 self.position_mgr.open_position(symbol, position_size)
-                log.info(f"✅ 已下買單: {symbol} {position_size}股")
+
+                trade_log.info(f"📈 進場: {symbol} | {position_size}股 @ ${entry_price:.2f} | 止蝕 ${stop_price:.2f}")
+                log.info(f"✅ 已下買單: {symbol} {position_size}股 @ ${entry_price:.2f}")
                 return True
 
         except Exception as e:
@@ -255,21 +342,47 @@ class TradingEngine:
 
         return False
 
+    def execute_exit(self, symbol: str, contract, pos, exit_price: float, reason: str):
+        """執行離場"""
+        try:
+            remaining = pos.remaining_shares
+            if remaining <= 0:
+                return
+
+            pnl = (exit_price - pos.entry_price) * pos.shares
+
+            if reason == "stop_loss":
+                trade = self.ibkr.place_market_sell_order(contract, remaining)
+            else:
+                trade = self.ibkr.place_sell_order(contract, remaining, exit_price)
+
+            if trade:
+                pos.mark_exited(exit_price)
+                self.position_mgr.close_position(symbol, pnl)
+
+                trade_log.info(f"{'📈' if pnl > 0 else '📉'} 離場: {symbol} | {remaining}股 @ ${exit_price:.2f} | PnL: ${pnl:.2f} | 原因: {reason}")
+                log.info(f"{'✅' if pnl > 0 else '⚠️'} 離場: {symbol} PnL: ${pnl:.2f} ({reason})")
+
+                # 從監控名單移除
+                if symbol in self.watchlist:
+                    del self.watchlist[symbol]
+                self.order_sm.remove_position(symbol)
+
+        except Exception as e:
+            log.error(f"離場執行失敗 {symbol}: {e}")
+
     def shutdown(self):
         """安全關閉機械人"""
         log.info("\n【清理資源】")
 
         self.running = False
 
-        # 取消所有待處理訂單
         pending = self.order_sm.get_pending_orders()
         for order in pending:
             log.info(f"取消訂單 {order.order_id}")
 
-        # 記錄最終狀態
         log.info(self.position_mgr.status_summary())
 
-        # 斷開連線
         if self.ib:
             self.ibkr.disconnect()
             log.info("✅ 已斷開 IBKR 連線")

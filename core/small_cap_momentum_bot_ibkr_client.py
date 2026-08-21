@@ -2,7 +2,7 @@
 統一管理同 IBKR TWS / Gateway 嘅連線。
 用 ib_async（原 ib_insync 嘅維護分支）。
 """
-from ib_async import IB, Stock, LimitOrder, StopLimitOrder, ScannerSubscription
+from ib_async import IB, Stock, LimitOrder, MarketOrder, StopLimitOrder, ScannerSubscription
 
 from config.settings import IB_HOST, IB_PORT, IB_CLIENT_ID, PAPER_TRADING
 from utils.logger import get_logger
@@ -29,6 +29,8 @@ class IBKRClient:
             self.connected = self.ib.isConnected()
             if self.connected:
                 log.info("✅ IBKR 連線成功")
+                self.ib.reqMarketDataType(3)
+                log.info("已設置延遲市場數據 (type 3)")
                 accounts = self.ib.managedAccounts()
                 self.account = accounts[0] if accounts else None
                 log.info(f"帳戶: {self.account}")
@@ -76,6 +78,28 @@ class IBKRClient:
             return trade
         except Exception as e:
             log.error(f"下買單失敗: {e}")
+            return None
+
+    def place_sell_order(self, contract, quantity: int, limit_price: float):
+        """下賣單（限價）"""
+        try:
+            order = LimitOrder("SELL", quantity, limit_price)
+            trade = self.ib.placeOrder(contract, order)
+            log.info(f"下賣單: {quantity} @ ${limit_price:.2f}")
+            return trade
+        except Exception as e:
+            log.error(f"下賣單失敗: {e}")
+            return None
+
+    def place_market_sell_order(self, contract, quantity: int):
+        """下賣單（市價）- 用於止蝕"""
+        try:
+            order = MarketOrder("SELL", quantity)
+            trade = self.ib.placeOrder(contract, order)
+            log.info(f"下市價賣單: {quantity}股")
+            return trade
+        except Exception as e:
+            log.error(f"下市價賣單失敗: {e}")
             return None
 
     def place_stop_limit_order(self, contract, quantity: int, stop_price: float, limit_price: float):
