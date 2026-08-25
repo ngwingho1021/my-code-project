@@ -29,8 +29,8 @@ class IBKRClient:
             self.connected = self.ib.isConnected()
             if self.connected:
                 log.info("✅ IBKR 連線成功")
-                self.ib.reqMarketDataType(3)
-                log.info("已設置延遲市場數據 (type 3)")
+                self.ib.reqMarketDataType(1)
+                log.info("已設置即時市場數據 (type 1 - Live)")
                 accounts = self.ib.managedAccounts()
                 self.account = accounts[0] if accounts else None
                 log.info(f"帳戶: {self.account}")
