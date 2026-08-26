@@ -408,14 +408,17 @@ class TradingEngine:
             trade_log.info(f"{'📈' if pnl > 0 else '📉'} 離場: {symbol} | {qty}股 @ ${exit_price:.2f} | PnL: ${pnl:.2f} | 原因: {reason} | 剩餘: {pos.remaining_shares}股")
             log.info(f"{'✅' if pnl > 0 else '⚠️'} {reason}: {symbol} 賣{qty}股 PnL: ${pnl:.2f} (剩{pos.remaining_shares}股)")
 
+            self.position_mgr.day_pnl += pnl
+            self.position_mgr.account_balance += pnl
+
             if pos.remaining_shares <= 0:
                 pos.mark_exited(exit_price)
-                total_pnl = pos.profits_taken
-                self.position_mgr.close_position(symbol, total_pnl)
+                if symbol in self.position_mgr.current_positions:
+                    del self.position_mgr.current_positions[symbol]
                 if symbol in self.watchlist:
                     del self.watchlist[symbol]
                 self.order_sm.remove_position(symbol)
-                log.info(f"📊 {symbol} 完全離場, 總 PnL: ${total_pnl:.2f}")
+                log.info(f"📊 {symbol} 完全離場, 總 PnL: ${pos.profits_taken:.2f}")
 
         except Exception as e:
             log.error(f"離場執行失敗 {symbol}: {e}")
