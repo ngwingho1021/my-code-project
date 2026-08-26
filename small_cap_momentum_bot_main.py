@@ -53,6 +53,7 @@ class TradingEngine:
         self.position_mgr = PositionManager()   # 持倉管理
         self.stock_selector = StockSelector()   # 5支柱篩選
         self.watchlist = {}                     # symbol -> contract
+        self.rejected_symbols = set()           # 被 IBKR 拒絕嘅股票
         self.running = False
 
     def is_trading_hours(self) -> bool:
@@ -195,6 +196,9 @@ class TradingEngine:
             if symbol in self.watchlist:
                 continue
 
+            if symbol in self.rejected_symbols:
+                continue
+
             if self.order_sm.get_position(symbol):
                 continue
 
@@ -223,7 +227,9 @@ class TradingEngine:
         if not self.is_trading_hours():
             return False
 
-        # 檢查風控
+        if symbol in self.rejected_symbols:
+            return False
+
         if not self.position_mgr.can_open_position(symbol):
             return False
 
@@ -357,7 +363,10 @@ class TradingEngine:
 
             trade = self.ibkr.place_buy_order(contract, position_size, entry_price)
             if trade is None:
-                log.warning(f"❌ 買單被拒絕或取消: {symbol}")
+                log.warning(f"❌ 買單被拒絕或取消: {symbol}，加入黑名單")
+                self.rejected_symbols.add(symbol)
+                if symbol in self.watchlist:
+                    del self.watchlist[symbol]
                 return False
 
             pos = self.order_sm.create_position(symbol, entry_price, position_size, stop_price)
