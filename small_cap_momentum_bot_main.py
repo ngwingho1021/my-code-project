@@ -264,7 +264,7 @@ class TradingEngine:
             return False
 
     def check_exit_signal(self, symbol: str, contract, pos):
-        """檢查離場信號 - 監控止盈/止蝕"""
+        """檢查離場信號 - 分批止盈 + trailing stop"""
         try:
             ticker = self.ibkr.get_market_data(contract, timeout=1)
             if ticker is None:
@@ -274,28 +274,58 @@ class TradingEngine:
             for attr in ['last', 'close', 'bid']:
                 val = getattr(ticker, attr, None)
                 if val is not None and val > 0:
-                    price = float(val)
+                    price = round(float(val), 2)
                     break
 
             if price is None or price <= 0:
                 return
 
-            entry_price = pos.entry_price
-            stop_price = pos.initial_stop
-
-            # 止蝕觸發
-            if price <= stop_price:
-                log.info(f"🛑 止蝕觸發: {symbol} @ ${price:.2f} (止蝕線: ${stop_price:.2f})")
-                self.execute_exit(symbol, contract, pos, price, "stop_loss")
+            if pos.remaining_shares <= 0:
                 return
 
-            # 止盈觸發：2R 目標
-            risk = entry_price - stop_price
-            target_2r = entry_price + (risk * 2)
+            entry_price = pos.entry_price
+            risk = entry_price - pos.initial_stop
+            target_1r = round(entry_price + risk, 2)
+            target_2r = round(entry_price + (risk * 2), 2)
 
-            if price >= target_2r:
-                log.info(f"🎉 止盈觸發 (2R): {symbol} @ ${price:.2f} (目標: ${target_2r:.2f})")
-                self.execute_exit(symbol, contract, pos, price, "take_profit_2r")
+            # 更新最高價
+            if price > pos.highest_price:
+                pos.highest_price = price
+
+            # 更新 trailing stop（只升唔跌）
+            if pos.took_profit_1r:
+                trail = round(entry_price + (pos.highest_price - entry_price) * 0.5, 2)
+                new_stop = max(entry_price, trail)
+                if new_stop > pos.trailing_stop:
+                    pos.trailing_stop = new_stop
+
+            # 止蝕/Trailing stop 觸發 → 全部賣出
+            if price <= pos.trailing_stop:
+                reason = "trailing_stop" if pos.took_profit_1r else "stop_loss"
+                log.info(f"🛑 {reason}: {symbol} @ ${price:.2f} (止蝕線: ${pos.trailing_stop:.2f})")
+                self.execute_exit(symbol, contract, pos, price, reason, pos.remaining_shares)
+                return
+
+            # 1R 止盈 → 賣 50%
+            if price >= target_1r and not pos.took_profit_1r:
+                qty = int(pos.shares * 0.5)
+                if qty < 1:
+                    qty = 1
+                pos.took_profit_1r = True
+                pos.trailing_stop = entry_price
+                log.info(f"🎯 1R 止盈: {symbol} 賣 {qty}股 @ ${price:.2f}, 止蝕移到打和 ${entry_price:.2f}")
+                self.execute_exit(symbol, contract, pos, price, "take_profit_1r", qty)
+                return
+
+            # 2R 止盈 → 賣 30%
+            if price >= target_2r and not pos.took_profit_2r:
+                qty = int(pos.shares * 0.3)
+                if qty < 1:
+                    qty = 1
+                pos.took_profit_2r = True
+                pos.trailing_stop = max(pos.trailing_stop, target_1r)
+                log.info(f"🎉 2R 止盈: {symbol} 賣 {qty}股 @ ${price:.2f}, 止蝕提升到 ${pos.trailing_stop:.2f}")
+                self.execute_exit(symbol, contract, pos, price, "take_profit_2r", qty)
                 return
 
         except Exception as e:
@@ -344,31 +374,39 @@ class TradingEngine:
 
         return False
 
-    def execute_exit(self, symbol: str, contract, pos, exit_price: float, reason: str):
-        """執行離場"""
+    def execute_exit(self, symbol: str, contract, pos, exit_price: float, reason: str, qty: int = None):
+        """執行離場（支持分批賣出）"""
         try:
-            remaining = pos.remaining_shares
-            if remaining <= 0:
+            if qty is None:
+                qty = pos.remaining_shares
+            qty = min(qty, pos.remaining_shares)
+            if qty <= 0:
                 return
 
-            pnl = (exit_price - pos.entry_price) * pos.shares
-
-            if reason == "stop_loss":
-                trade = self.ibkr.place_market_sell_order(contract, remaining)
+            if reason in ("stop_loss", "trailing_stop"):
+                trade = self.ibkr.place_market_sell_order(contract, qty)
             else:
-                trade = self.ibkr.place_sell_order(contract, remaining, exit_price)
+                trade = self.ibkr.place_sell_order(contract, qty, exit_price)
 
-            if trade:
+            if trade is None:
+                log.warning(f"❌ 賣單被拒絕: {symbol} {qty}股")
+                return
+
+            pnl = (exit_price - pos.entry_price) * qty
+            pos.remaining_shares -= qty
+            pos.profits_taken += pnl
+
+            trade_log.info(f"{'📈' if pnl > 0 else '📉'} 離場: {symbol} | {qty}股 @ ${exit_price:.2f} | PnL: ${pnl:.2f} | 原因: {reason} | 剩餘: {pos.remaining_shares}股")
+            log.info(f"{'✅' if pnl > 0 else '⚠️'} {reason}: {symbol} 賣{qty}股 PnL: ${pnl:.2f} (剩{pos.remaining_shares}股)")
+
+            if pos.remaining_shares <= 0:
                 pos.mark_exited(exit_price)
-                self.position_mgr.close_position(symbol, pnl)
-
-                trade_log.info(f"{'📈' if pnl > 0 else '📉'} 離場: {symbol} | {remaining}股 @ ${exit_price:.2f} | PnL: ${pnl:.2f} | 原因: {reason}")
-                log.info(f"{'✅' if pnl > 0 else '⚠️'} 離場: {symbol} PnL: ${pnl:.2f} ({reason})")
-
-                # 從監控名單移除
+                total_pnl = pos.profits_taken
+                self.position_mgr.close_position(symbol, total_pnl)
                 if symbol in self.watchlist:
                     del self.watchlist[symbol]
                 self.order_sm.remove_position(symbol)
+                log.info(f"📊 {symbol} 完全離場, 總 PnL: ${total_pnl:.2f}")
 
         except Exception as e:
             log.error(f"離場執行失敗 {symbol}: {e}")

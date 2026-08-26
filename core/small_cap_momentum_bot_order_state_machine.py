@@ -85,10 +85,15 @@ class Position:
     state: PositionState = field(default=PositionState.ENTRY_PENDING)
     entry_order_id: Optional[int] = None
     stop_order_id: Optional[int] = None
-    profit_orders: dict[int, float] = field(default_factory=dict)  # order_id -> price
+    profit_orders: dict[int, float] = field(default_factory=dict)
 
     remaining_shares: int = field(default=0)
     profits_taken: float = field(default=0.0)
+
+    trailing_stop: float = field(default=0.0)
+    highest_price: float = field(default=0.0)
+    took_profit_1r: bool = field(default=False)
+    took_profit_2r: bool = field(default=False)
 
     created_at: datetime = field(default_factory=datetime.now)
     entered_at: Optional[datetime] = None
@@ -100,6 +105,8 @@ class Position:
         self.entry_order_id = order_id
         self.entered_at = datetime.now()
         self.remaining_shares = self.shares
+        self.trailing_stop = self.initial_stop
+        self.highest_price = self.entry_price
         log.info(f"持倉 {self.symbol}: 已進場 @ {self.entry_price} ({self.shares}股)")
 
     def add_stop_order(self, order_id: int):
