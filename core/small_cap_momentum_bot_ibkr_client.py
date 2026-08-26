@@ -73,8 +73,14 @@ class IBKRClient:
         """下買單（限價）"""
         try:
             order = LimitOrder("BUY", quantity, limit_price)
+            order.tif = "GTC"
+            order.outsideRth = True
             trade = self.ib.placeOrder(contract, order)
-            log.info(f"下買單: {quantity} @ ${limit_price:.2f}")
+            log.info(f"下買單: {quantity} @ ${limit_price:.2f} (GTC, outsideRth)")
+            self.ib.sleep(2)
+            if trade.orderStatus.status == "Cancelled":
+                log.error(f"買單被取消: {contract.symbol}")
+                return None
             return trade
         except Exception as e:
             log.error(f"下買單失敗: {e}")
@@ -84,8 +90,14 @@ class IBKRClient:
         """下賣單（限價）"""
         try:
             order = LimitOrder("SELL", quantity, limit_price)
+            order.tif = "GTC"
+            order.outsideRth = True
             trade = self.ib.placeOrder(contract, order)
-            log.info(f"下賣單: {quantity} @ ${limit_price:.2f}")
+            log.info(f"下賣單: {quantity} @ ${limit_price:.2f} (GTC, outsideRth)")
+            self.ib.sleep(2)
+            if trade.orderStatus.status == "Cancelled":
+                log.error(f"賣單被取消: {contract.symbol}")
+                return None
             return trade
         except Exception as e:
             log.error(f"下賣單失敗: {e}")
@@ -95,8 +107,14 @@ class IBKRClient:
         """下賣單（市價）- 用於止蝕"""
         try:
             order = MarketOrder("SELL", quantity)
+            order.tif = "GTC"
+            order.outsideRth = True
             trade = self.ib.placeOrder(contract, order)
-            log.info(f"下市價賣單: {quantity}股")
+            log.info(f"下市價賣單: {quantity}股 (GTC, outsideRth)")
+            self.ib.sleep(2)
+            if trade.orderStatus.status == "Cancelled":
+                log.error(f"市價賣單被取消: {contract.symbol}")
+                return None
             return trade
         except Exception as e:
             log.error(f"下市價賣單失敗: {e}")

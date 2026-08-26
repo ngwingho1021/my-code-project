@@ -327,15 +327,18 @@ class TradingEngine:
             )
 
             trade = self.ibkr.place_buy_order(contract, position_size, entry_price)
-            if trade:
-                pos = self.order_sm.create_position(symbol, entry_price, position_size, stop_price)
-                pos.mark_entered(buy_order.order_id)
+            if trade is None:
+                log.warning(f"❌ 買單被拒絕或取消: {symbol}")
+                return False
 
-                self.position_mgr.open_position(symbol, position_size)
+            pos = self.order_sm.create_position(symbol, entry_price, position_size, stop_price)
+            pos.mark_entered(buy_order.order_id)
 
-                trade_log.info(f"📈 進場: {symbol} | {position_size}股 @ ${entry_price:.2f} | 止蝕 ${stop_price:.2f}")
-                log.info(f"✅ 已下買單: {symbol} {position_size}股 @ ${entry_price:.2f}")
-                return True
+            self.position_mgr.open_position(symbol, position_size)
+
+            trade_log.info(f"📈 進場: {symbol} | {position_size}股 @ ${entry_price:.2f} | 止蝕 ${stop_price:.2f}")
+            log.info(f"✅ 已下買單: {symbol} {position_size}股 @ ${entry_price:.2f}")
+            return True
 
         except Exception as e:
             log.error(f"進場執行失敗: {e}")
