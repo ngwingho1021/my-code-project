@@ -94,6 +94,8 @@ class Position:
     highest_price: float = field(default=0.0)
     took_profit_1r: bool = field(default=False)
     took_profit_2r: bool = field(default=False)
+    took_profit_3r: bool = field(default=False)
+    stop_trade: object = field(default=None)  # 盤前掛單止蝕 trade 對象
 
     created_at: datetime = field(default_factory=datetime.now)
     entered_at: Optional[datetime] = None
