@@ -273,7 +273,7 @@ class TradingEngine:
             return False
 
     def check_premarket_exit_signal(self, symbol: str, contract, pos):
-        """盤前離場 - 只用限價單，唔用 trailing stop"""
+        """盤前離場 - 限價單 + 手動模擬 trailing stop（poll 價格）"""
         try:
             ticker = self.ibkr.get_market_data(contract, timeout=1)
             if ticker is None:
@@ -297,26 +297,40 @@ class TradingEngine:
             target_1r = round(entry_price + risk, 2)
             target_2r = round(entry_price + (risk * 2), 2)
 
-            # 盤前止蝕 - 跌穿初始止蝕線，用限價單（唔能用市價單）
-            if price <= pos.initial_stop:
-                limit_price = round(pos.initial_stop * 0.995, 2)  # 稍低於止蝕確保成交
-                log.info(f"🛑 盤前止蝕: {symbol} @ ${price:.2f} → 限價賣 @ ${limit_price:.2f}")
-                self.execute_exit(symbol, contract, pos, limit_price, "premarket_stop_loss", pos.remaining_shares)
+            # 更新最高價
+            if price > pos.highest_price:
+                pos.highest_price = price
+
+            # 更新 trailing stop（只升唔跌，1R 止盈後才啟動）
+            if pos.took_profit_1r:
+                trail = round(entry_price + (pos.highest_price - entry_price) * 0.5, 2)
+                new_stop = max(entry_price, trail)
+                if new_stop > pos.trailing_stop:
+                    pos.trailing_stop = new_stop
+
+            # 止蝕 / trailing stop 觸發 → 限價單賣出（盤前唔能用市價單）
+            if price <= pos.trailing_stop:
+                limit_price = round(pos.trailing_stop * 0.995, 2)
+                reason = "premarket_trailing_stop" if pos.took_profit_1r else "premarket_stop_loss"
+                log.info(f"🛑 {reason}: {symbol} @ ${price:.2f} → 限價賣 @ ${limit_price:.2f} (止蝕線: ${pos.trailing_stop:.2f})")
+                self.execute_exit(symbol, contract, pos, limit_price, reason, pos.remaining_shares)
                 return
 
-            # 盤前 1R 止盈 - 用限價單賣 50%
+            # 1R 止盈 → 限價單賣 50%，止蝕移到打和位
             if price >= target_1r and not pos.took_profit_1r:
                 qty = max(1, int(pos.shares * 0.5))
                 pos.took_profit_1r = True
-                log.info(f"🎯 盤前 1R 止盈: {symbol} 賣 {qty}股 @ ${price:.2f}")
+                pos.trailing_stop = entry_price
+                log.info(f"🎯 盤前 1R 止盈: {symbol} 賣 {qty}股 @ ${price:.2f}, 止蝕移到打和 ${entry_price:.2f}")
                 self.execute_exit(symbol, contract, pos, price, "premarket_take_profit_1r", qty)
                 return
 
-            # 盤前 2R 止盈 - 用限價單賣 30%
+            # 2R 止盈 → 限價單賣 30%，止蝕提升到 1R
             if price >= target_2r and not pos.took_profit_2r:
                 qty = max(1, int(pos.shares * 0.3))
                 pos.took_profit_2r = True
-                log.info(f"🎉 盤前 2R 止盈: {symbol} 賣 {qty}股 @ ${price:.2f}")
+                pos.trailing_stop = max(pos.trailing_stop, target_1r)
+                log.info(f"🎉 盤前 2R 止盈: {symbol} 賣 {qty}股 @ ${price:.2f}, 止蝕提升到 ${pos.trailing_stop:.2f}")
                 self.execute_exit(symbol, contract, pos, price, "premarket_take_profit_2r", qty)
                 return
 
