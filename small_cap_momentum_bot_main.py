@@ -270,7 +270,10 @@ class TradingEngine:
             return False
 
     def check_exit_signal(self, symbol: str, contract, pos):
-        """檢查離場信號 - 分批止盈 + trailing stop"""
+        """檢查離場信號 - 分批止盈 + trailing stop（盤中只）"""
+        if not self.is_market_hours():
+            return
+
         try:
             ticker = self.ibkr.get_market_data(contract, timeout=1)
             if ticker is None:
