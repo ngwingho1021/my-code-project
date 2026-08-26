@@ -144,7 +144,7 @@ class IBKRClient:
         return False
 
     def get_market_data(self, contract, timeout: int = 2):
-        """獲取市場數據"""
+        """獲取市場數據（snapshot，用於一次性查價）"""
         try:
             ticker = self.ib.reqMktData(contract, "", False, False)
             self.ib.sleep(timeout)
@@ -153,6 +153,25 @@ class IBKRClient:
         except Exception as e:
             log.error(f"獲取市場數據失敗: {e}")
             return None
+
+    def subscribe_market_data(self, contract):
+        """訂閱持續串流數據 - 返回 ticker，後台自動更新"""
+        try:
+            ticker = self.ib.reqMktData(contract, "", False, False)
+            self.ib.sleep(0.5)  # 等首個 tick
+            log.info(f"已訂閱串流數據: {contract.symbol}")
+            return ticker
+        except Exception as e:
+            log.error(f"訂閱串流數據失敗: {e}")
+            return None
+
+    def unsubscribe_market_data(self, contract):
+        """退訂串流數據"""
+        try:
+            self.ib.cancelMktData(contract)
+            log.info(f"已退訂串流數據: {contract.symbol}")
+        except Exception as e:
+            log.error(f"退訂串流數據失敗: {e}")
 
     def get_historical_data(self, contract, duration: str = "20 D", bar_size: str = "1 day"):
         """獲取歷史數據"""

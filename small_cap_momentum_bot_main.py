@@ -31,7 +31,7 @@ log = get_logger("main")
 trade_log = get_logger("trades")
 
 SCAN_INTERVAL_SEC = 60
-MANAGE_INTERVAL_SEC = 5
+MANAGE_INTERVAL_SEC = 1
 MAX_WATCHLIST_SIZE = 5
 STOP_LOSS_PCT = 0.05
 
@@ -53,6 +53,7 @@ class TradingEngine:
         self.position_mgr = PositionManager()   # 持倉管理
         self.stock_selector = StockSelector()   # 5支柱篩選
         self.watchlist = {}                     # symbol -> contract
+        self.tickers = {}                       # symbol -> streaming ticker
         self.rejected_symbols = set()           # 被 IBKR 拒絕嘅股票
         self.running = False
 
@@ -275,7 +276,10 @@ class TradingEngine:
     def check_premarket_exit_signal(self, symbol: str, contract, pos):
         """盤前離場 - 純 polling，限價單執行（盤前唔支援 stop order）"""
         try:
-            ticker = self.ibkr.get_market_data(contract, timeout=1)
+            ticker = self.tickers.get(symbol)
+            if ticker is None:
+                # 未有串流，用 snapshot 補救
+                ticker = self.ibkr.get_market_data(contract, timeout=1)
             if ticker is None:
                 return
 
@@ -338,7 +342,9 @@ class TradingEngine:
     def check_exit_signal(self, symbol: str, contract, pos):
         """盤中離場 - 分批止盈 + trailing stop"""
         try:
-            ticker = self.ibkr.get_market_data(contract, timeout=1)
+            ticker = self.tickers.get(symbol)
+            if ticker is None:
+                ticker = self.ibkr.get_market_data(contract, timeout=1)
             if ticker is None:
                 return
 
@@ -440,6 +446,11 @@ class TradingEngine:
 
             self.position_mgr.open_position(symbol, position_size)
 
+            # 訂閱串流數據（進場後持續更新，唔需要每次 snapshot）
+            ticker = self.ibkr.subscribe_market_data(contract)
+            if ticker:
+                self.tickers[symbol] = ticker
+
             # 盤前：唔掛止蝕單（限價單會即刻成交），改靠 poll 監控
 
             trade_log.info(f"📈 進場: {symbol} | {position_size}股 @ ${entry_price:.2f} | 止蝕 ${stop_price:.2f}")
@@ -488,6 +499,10 @@ class TradingEngine:
                 if symbol in self.watchlist:
                     del self.watchlist[symbol]
                 self.order_sm.remove_position(symbol)
+                # 退訂串流數據
+                if symbol in self.tickers:
+                    self.ibkr.unsubscribe_market_data(contract)
+                    del self.tickers[symbol]
                 log.info(f"📊 {symbol} 完全離場, 總 PnL: ${pos.profits_taken:.2f}")
 
         except Exception as e:
