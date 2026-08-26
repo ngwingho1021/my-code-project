@@ -217,7 +217,10 @@ class TradingEngine:
                 if pos is None:
                     self.check_entry_signal(symbol, contract)
                 elif pos.state == PositionState.ENTRY_FILLED:
-                    self.check_exit_signal(symbol, contract, pos)
+                    if self.is_market_hours():
+                        self.check_exit_signal(symbol, contract, pos)
+                    elif self.is_premarket_hours():
+                        self.check_premarket_exit_signal(symbol, contract, pos)
 
             except Exception as e:
                 log.error(f"{symbol} 監控出錯: {e}")
@@ -269,11 +272,59 @@ class TradingEngine:
             log.debug(f"{symbol}: 進場檢查失敗: {e}")
             return False
 
-    def check_exit_signal(self, symbol: str, contract, pos):
-        """檢查離場信號 - 分批止盈 + trailing stop（盤中只）"""
-        if not self.is_market_hours():
-            return
+    def check_premarket_exit_signal(self, symbol: str, contract, pos):
+        """盤前離場 - 只用限價單，唔用 trailing stop"""
+        try:
+            ticker = self.ibkr.get_market_data(contract, timeout=1)
+            if ticker is None:
+                return
 
+            price = None
+            for attr in ['last', 'close', 'bid']:
+                val = getattr(ticker, attr, None)
+                if val is not None and val > 0:
+                    price = round(float(val), 2)
+                    break
+
+            if price is None or price <= 0:
+                return
+
+            if pos.remaining_shares <= 0:
+                return
+
+            entry_price = pos.entry_price
+            risk = entry_price - pos.initial_stop
+            target_1r = round(entry_price + risk, 2)
+            target_2r = round(entry_price + (risk * 2), 2)
+
+            # 盤前止蝕 - 跌穿初始止蝕線，用限價單（唔能用市價單）
+            if price <= pos.initial_stop:
+                limit_price = round(pos.initial_stop * 0.995, 2)  # 稍低於止蝕確保成交
+                log.info(f"🛑 盤前止蝕: {symbol} @ ${price:.2f} → 限價賣 @ ${limit_price:.2f}")
+                self.execute_exit(symbol, contract, pos, limit_price, "premarket_stop_loss", pos.remaining_shares)
+                return
+
+            # 盤前 1R 止盈 - 用限價單賣 50%
+            if price >= target_1r and not pos.took_profit_1r:
+                qty = max(1, int(pos.shares * 0.5))
+                pos.took_profit_1r = True
+                log.info(f"🎯 盤前 1R 止盈: {symbol} 賣 {qty}股 @ ${price:.2f}")
+                self.execute_exit(symbol, contract, pos, price, "premarket_take_profit_1r", qty)
+                return
+
+            # 盤前 2R 止盈 - 用限價單賣 30%
+            if price >= target_2r and not pos.took_profit_2r:
+                qty = max(1, int(pos.shares * 0.3))
+                pos.took_profit_2r = True
+                log.info(f"🎉 盤前 2R 止盈: {symbol} 賣 {qty}股 @ ${price:.2f}")
+                self.execute_exit(symbol, contract, pos, price, "premarket_take_profit_2r", qty)
+                return
+
+        except Exception as e:
+            log.error(f"{symbol} 盤前離場檢查失敗: {e}")
+
+    def check_exit_signal(self, symbol: str, contract, pos):
+        """盤中離場 - 分批止盈 + trailing stop"""
         try:
             ticker = self.ibkr.get_market_data(contract, timeout=1)
             if ticker is None:
@@ -397,6 +448,8 @@ class TradingEngine:
 
             if reason in ("stop_loss", "trailing_stop"):
                 trade = self.ibkr.place_market_sell_order(contract, qty)
+            elif reason == "premarket_stop_loss":
+                trade = self.ibkr.place_sell_order(contract, qty, exit_price)
             else:
                 trade = self.ibkr.place_sell_order(contract, qty, exit_price)
 
