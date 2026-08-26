@@ -235,12 +235,11 @@ class TradingEngine:
                 log.debug(f"{symbol}: 無法獲取市場數據")
                 return False
 
-            # 嘗試不同的價格來源
             price = None
             for attr in ['last', 'close', 'bid', 'ask']:
                 val = getattr(ticker, attr, None)
                 if val is not None and val > 0:
-                    price = float(val)
+                    price = round(float(val), 2)
                     break
 
             if price is None or price <= 0:
