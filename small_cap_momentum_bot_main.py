@@ -272,22 +272,8 @@ class TradingEngine:
             log.debug(f"{symbol}: 進場檢查失敗: {e}")
             return False
 
-    def _update_premarket_stop(self, contract, pos, new_stop: float):
-        """取消舊止蝕單，掛新止蝕單（盤前專用）"""
-        if pos.stop_trade:
-            self.ibkr.cancel_order(pos.stop_trade)
-            pos.stop_trade = None
-
-        new_qty = pos.remaining_shares
-        if new_qty > 0:
-            stop_trade = self.ibkr.place_premarket_stop_order(contract, new_qty, new_stop)
-            if stop_trade:
-                pos.stop_trade = stop_trade
-                pos.trailing_stop = new_stop
-                log.info(f"📌 止蝕單更新: {pos.symbol} @ ${new_stop:.2f} ({new_qty}股)")
-
     def check_premarket_exit_signal(self, symbol: str, contract, pos):
-        """盤前離場 - 實際掛單止蝕 + poll 監控 1R/2R/3R"""
+        """盤前離場 - 純 polling，限價單執行（盤前唔支援 stop order）"""
         try:
             ticker = self.ibkr.get_market_data(contract, timeout=1)
             if ticker is None:
@@ -312,31 +298,36 @@ class TradingEngine:
             target_2r = round(entry_price + (risk * 2), 2)
             target_3r = round(entry_price + (risk * 3), 2)
 
-            # 1R → 賣 50%，止蝕單移到打和位
+            # 止蝕觸發（poll 到，即刻落限價單）
+            current_stop = pos.trailing_stop if pos.trailing_stop > 0 else pos.initial_stop
+            if price <= current_stop:
+                reason = "premarket_stop"
+                log.info(f"🛑 盤前止蝕: {symbol} @ ${price:.2f} (止蝕線: ${current_stop:.2f})")
+                self.execute_exit(symbol, contract, pos, current_stop, reason, pos.remaining_shares)
+                return
+
+            # 1R → 賣 50%，止蝕線移到打和位（software 追蹤）
             if price >= target_1r and not pos.took_profit_1r:
                 qty = max(1, int(pos.shares * 0.5))
                 pos.took_profit_1r = True
-                log.info(f"🎯 盤前 1R: {symbol} 賣 {qty}股 @ ${price:.2f}")
+                pos.trailing_stop = entry_price
+                log.info(f"🎯 盤前 1R: {symbol} 賣 {qty}股 @ ${price:.2f}, 止蝕移打和 ${entry_price:.2f}")
                 self.execute_exit(symbol, contract, pos, price, "premarket_tp1r", qty)
-                self._update_premarket_stop(contract, pos, entry_price)
                 return
 
-            # 2R → 賣 30%，止蝕單提升到 1R
+            # 2R → 賣 30%，止蝕線提到 1R（software 追蹤）
             if price >= target_2r and not pos.took_profit_2r:
                 qty = max(1, int(pos.shares * 0.3))
                 pos.took_profit_2r = True
-                log.info(f"🎉 盤前 2R: {symbol} 賣 {qty}股 @ ${price:.2f}")
+                pos.trailing_stop = target_1r
+                log.info(f"🎉 盤前 2R: {symbol} 賣 {qty}股 @ ${price:.2f}, 止蝕升到 ${target_1r:.2f}")
                 self.execute_exit(symbol, contract, pos, price, "premarket_tp2r", qty)
-                self._update_premarket_stop(contract, pos, target_1r)
                 return
 
-            # 3R → 全部賣出，取消止蝕單
+            # 3R → 全部賣出
             if price >= target_3r and not pos.took_profit_3r:
                 qty = pos.remaining_shares
                 pos.took_profit_3r = True
-                if pos.stop_trade:
-                    self.ibkr.cancel_order(pos.stop_trade)
-                    pos.stop_trade = None
                 log.info(f"🚀 盤前 3R: {symbol} 全出 {qty}股 @ ${price:.2f}")
                 self.execute_exit(symbol, contract, pos, price, "premarket_tp3r", qty)
                 return
@@ -449,12 +440,7 @@ class TradingEngine:
 
             self.position_mgr.open_position(symbol, position_size)
 
-            # 盤前：即刻掛止蝕單（StopLimit GTC outsideRth）
-            if self.is_premarket_hours():
-                stop_trade = self.ibkr.place_premarket_stop_order(contract, position_size, stop_price)
-                if stop_trade:
-                    pos.stop_trade = stop_trade
-                    log.info(f"📌 盤前止蝕單已掛: {symbol} @ ${stop_price:.2f}")
+            # 盤前：唔掛止蝕單（限價單會即刻成交），改靠 poll 監控
 
             trade_log.info(f"📈 進場: {symbol} | {position_size}股 @ ${entry_price:.2f} | 止蝕 ${stop_price:.2f}")
             log.info(f"✅ 已下買單: {symbol} {position_size}股 @ ${entry_price:.2f}")

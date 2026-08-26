@@ -120,19 +120,6 @@ class IBKRClient:
             log.error(f"下市價賣單失敗: {e}")
             return None
 
-    def place_premarket_stop_order(self, contract, quantity: int, stop_price: float):
-        """盤前止蝕掛單 - 限價單 GTC outsideRth=True（盤前唔支援 StopLimit）"""
-        try:
-            order = LimitOrder("SELL", quantity, stop_price)
-            order.tif = "GTC"
-            order.outsideRth = True
-            trade = self.ib.placeOrder(contract, order)
-            log.info(f"盤前止蝕限價掛單: {quantity}股 @ ${stop_price:.2f} (GTC outsideRth)")
-            return trade
-        except Exception as e:
-            log.error(f"盤前止蝕掛單失敗: {e}")
-            return None
-
     def place_stop_limit_order(self, contract, quantity: int, stop_price: float, limit_price: float):
         """下止蝕單（Stop-Limit）"""
         try:
