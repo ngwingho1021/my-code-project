@@ -308,12 +308,11 @@ class TradingEngine:
                 if new_stop > pos.trailing_stop:
                     pos.trailing_stop = new_stop
 
-            # 止蝕 / trailing stop 觸發 → 限價單賣出（盤前唔能用市價單）
+            # 止蝕 / trailing stop 觸發 → 限價單用止蝕線原價（盤前唔能用市價單）
             if price <= pos.trailing_stop:
-                limit_price = round(pos.trailing_stop * 0.995, 2)
                 reason = "premarket_trailing_stop" if pos.took_profit_1r else "premarket_stop_loss"
-                log.info(f"🛑 {reason}: {symbol} @ ${price:.2f} → 限價賣 @ ${limit_price:.2f} (止蝕線: ${pos.trailing_stop:.2f})")
-                self.execute_exit(symbol, contract, pos, limit_price, reason, pos.remaining_shares)
+                log.info(f"🛑 {reason}: {symbol} @ ${price:.2f} (止蝕線: ${pos.trailing_stop:.2f})")
+                self.execute_exit(symbol, contract, pos, pos.trailing_stop, reason, pos.remaining_shares)
                 return
 
             # 1R 止盈 → 限價單賣 50%，止蝕移到打和位
