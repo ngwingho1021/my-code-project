@@ -289,12 +289,20 @@ class TradingEngine:
             if ticker is None:
                 return
 
-            price = None
-            for attr in ['last', 'close', 'bid']:
-                val = getattr(ticker, attr, None)
-                if val is not None and val > 0:
-                    price = round(float(val), 2)
-                    break
+            def _get_price(attrs):
+                for attr in attrs:
+                    val = getattr(ticker, attr, None)
+                    try:
+                        v = float(val)
+                        if v > 0 and v == v:
+                            return round(v, 2)
+                    except (TypeError, ValueError):
+                        pass
+                return None
+
+            stop_price = _get_price(['bid', 'last'])
+            current_price = _get_price(['last', 'bid'])
+            price = current_price or stop_price
 
             if price is None or price <= 0:
                 return
@@ -308,11 +316,12 @@ class TradingEngine:
             target_2r = round(entry_price + (risk * 2), 2)
             target_3r = round(entry_price + (risk * 3), 2)
 
-            # 止蝕觸發（poll 到，即刻落限價單）
+            # 止蝕觸發（bid 優先，即刻落限價單）
             current_stop = pos.trailing_stop if pos.trailing_stop > 0 else pos.initial_stop
-            if price <= current_stop:
+            check_stop = stop_price if stop_price else price
+            if check_stop <= current_stop:
                 reason = "premarket_stop"
-                log.info(f"🛑 盤前止蝕: {symbol} @ ${price:.2f} (止蝕線: ${current_stop:.2f})")
+                log.info(f"🛑 盤前止蝕: {symbol} bid=${check_stop:.2f} (止蝕線: ${current_stop:.2f})")
                 self.execute_exit(symbol, contract, pos, current_stop, reason, pos.remaining_shares)
                 return
 
@@ -354,12 +363,21 @@ class TradingEngine:
             if ticker is None:
                 return
 
-            price = None
-            for attr in ['last', 'close', 'bid']:
-                val = getattr(ticker, attr, None)
-                if val is not None and val > 0:
-                    price = round(float(val), 2)
-                    break
+            # 止蝕用 bid（即時，急跌更準），唔用 close（昨日收市）
+            def _get_price(attrs):
+                for attr in attrs:
+                    val = getattr(ticker, attr, None)
+                    try:
+                        v = float(val)
+                        if v > 0 and v == v:  # v==v 排除 nan
+                            return round(v, 2)
+                    except (TypeError, ValueError):
+                        pass
+                return None
+
+            stop_price = _get_price(['bid', 'last'])      # 止蝕用 bid 優先
+            current_price = _get_price(['last', 'bid'])   # 止盈用 last 優先
+            price = current_price or stop_price
 
             if price is None or price <= 0:
                 return
@@ -383,11 +401,12 @@ class TradingEngine:
                 if new_stop > pos.trailing_stop:
                     pos.trailing_stop = new_stop
 
-            # 止蝕/Trailing stop 觸發 → 全部賣出
-            if price <= pos.trailing_stop:
+            # 止蝕/Trailing stop 觸發 → 用 bid 價格確認，即刻全部賣出
+            check_stop = stop_price if stop_price else price
+            if check_stop <= pos.trailing_stop:
                 reason = "trailing_stop" if pos.took_profit_1r else "stop_loss"
-                log.info(f"🛑 {reason}: {symbol} @ ${price:.2f} (止蝕線: ${pos.trailing_stop:.2f})")
-                self.execute_exit(symbol, contract, pos, price, reason, pos.remaining_shares)
+                log.info(f"🛑 {reason}: {symbol} bid=${check_stop:.2f} (止蝕線: ${pos.trailing_stop:.2f})")
+                self.execute_exit(symbol, contract, pos, check_stop, reason, pos.remaining_shares)
                 return
 
             # 1R 止盈 → 賣 50%
