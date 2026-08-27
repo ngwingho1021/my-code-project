@@ -173,6 +173,20 @@ class IBKRClient:
         except Exception as e:
             log.error(f"退訂串流數據失敗: {e}")
 
+    def get_small_cap_position_count(self, min_price: float = 2.0, max_price: float = 20.0) -> int:
+        """查詢帳戶內真實小市值持倉數量（過濾其他 bot 嘅大價股）"""
+        try:
+            positions = self.ib.positions()
+            count = sum(
+                1 for p in positions
+                if p.position > 0 and min_price <= p.avgCost <= max_price
+            )
+            log.debug(f"帳戶真實小市值持倉: {count} 個")
+            return count
+        except Exception as e:
+            log.error(f"查詢帳戶持倉失敗: {e}")
+            return -1  # -1 = 查詢失敗
+
     def get_historical_data(self, contract, duration: str = "20 D", bar_size: str = "1 day"):
         """獲取歷史數據"""
         try:
