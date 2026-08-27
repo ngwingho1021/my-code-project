@@ -38,6 +38,7 @@ STOP_LOSS_PCT = 0.05
 # 交易時間（EST 時區）
 PREMARKET_START = dt_time(4, 0)      # 04:00
 MARKET_OPEN = dt_time(9, 30)         # 09:30
+FORCE_CLOSE_TIME = dt_time(15, 55)   # 15:55 強制平倉
 MARKET_CLOSE = dt_time(16, 0)        # 16:00
 AFTERHOURS_END = dt_time(20, 0)      # 20:00
 EST = pytz.timezone('America/New_York')
@@ -71,6 +72,11 @@ class TradingEngine:
         """檢查係咪盤前時間"""
         now = datetime.now(EST).time()
         return PREMARKET_START <= now < MARKET_OPEN
+
+    def is_force_close_window(self) -> bool:
+        """收盤前 5 分鐘強制平倉視窗"""
+        now = datetime.now(EST).time()
+        return FORCE_CLOSE_TIME <= now < MARKET_CLOSE
 
     def get_time_status(self) -> str:
         """獲取當前時間狀態"""
@@ -209,8 +215,48 @@ class TradingEngine:
 
         log.info(f"監控名單: {list(self.watchlist.keys())} ({len(self.watchlist)} 隻)")
 
+    def force_close_all_positions(self):
+        """收盤前 5 分鐘強制市價平倉所有持倉"""
+        active = self.order_sm.get_active_positions()
+        if not active:
+            return
+
+        log.warning(f"⚠️ 15:55 強制平倉 - {len(active)} 個持倉")
+        for pos in active:
+            symbol = pos.symbol
+            contract = self.watchlist.get(symbol)
+            if contract is None:
+                continue
+            if pos.remaining_shares <= 0:
+                continue
+            try:
+                log.warning(f"🔴 強制平倉: {symbol} {pos.remaining_shares}股 (市價)")
+                trade = self.ibkr.place_market_sell_order(contract, pos.remaining_shares)
+                if trade:
+                    # 用最後已知 bid 價估算 PnL 記錄
+                    ticker = self.tickers.get(symbol)
+                    exit_price = pos.entry_price  # 保守估算，實際以成交為準
+                    if ticker:
+                        for attr in ['last', 'bid']:
+                            val = getattr(ticker, attr, None)
+                            try:
+                                v = float(val)
+                                if v > 0 and v == v:
+                                    exit_price = round(v, 2)
+                                    break
+                            except (TypeError, ValueError):
+                                pass
+                    self.execute_exit(symbol, contract, pos, exit_price, "force_close_eod", pos.remaining_shares)
+            except Exception as e:
+                log.error(f"強制平倉 {symbol} 失敗: {e}")
+
     def manage_open_positions(self):
         """監控現有持倉 - 檢查進場/止盈/止蝕"""
+        # 收盤前 5 分鐘：強制市價平倉，唔留過夜
+        if self.is_force_close_window():
+            self.force_close_all_positions()
+            return
+
         for symbol, contract in list(self.watchlist.items()):
             try:
                 pos = self.order_sm.get_position(symbol)
