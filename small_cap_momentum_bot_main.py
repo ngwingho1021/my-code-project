@@ -273,8 +273,8 @@ class TradingEngine:
                 log.error(f"{symbol} 監控出錯: {e}")
 
     def check_entry_signal(self, symbol: str, contract) -> bool:
-        """檢查進場信號 - 掃描器已篩選，嘗試進場"""
-        if not self.is_trading_hours():
+        """檢查進場信號 - 只在正常交易時間進場（09:30-16:00）"""
+        if not self.is_market_hours():
             return False
 
         if symbol in self.rejected_symbols:
@@ -481,9 +481,9 @@ class TradingEngine:
             log.error(f"{symbol} 離場檢查失敗: {e}")
 
     def execute_entry(self, symbol: str, contract, entry_price: float, stop_price: float):
-        """執行進場（只在交易時間進場）"""
-        if not self.is_trading_hours():
-            log.warning(f"非交易時間 ({self.get_time_status()})，無法進場")
+        """執行進場（只在正常交易時間進場 09:30-16:00）"""
+        if not self.is_market_hours():
+            log.warning(f"非正常交易時間 ({self.get_time_status()})，唔進場")
             return False
 
         log.info(f"【進場信號】{symbol} @ ${entry_price:.2f}, 止蝕 @ ${stop_price:.2f} ({self.get_time_status()})")
