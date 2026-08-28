@@ -108,10 +108,7 @@ class PositionManager:
             log.warning(f"已達到每日最多交易次數 ({ACCOUNT_RISK.max_trades_per_day})")
             return False
 
-        # 檢查並行持倉限制
-        if len(self.current_positions) >= ACCOUNT_RISK.max_concurrent_positions:
-            log.warning(f"已達到最多並行持倉 ({ACCOUNT_RISK.max_concurrent_positions})")
-            return False
+        # 並行持倉限制由 TradingEngine 查 IBKR 實時帳戶決定，唔靠內部計數器
 
         # 檢查每日累計虧損限制
         if self.day_pnl <= -ACCOUNT_RISK.max_loss_per_day:
