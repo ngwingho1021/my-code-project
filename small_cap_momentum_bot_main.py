@@ -430,14 +430,22 @@ class TradingEngine:
 
                 log.info(f"  ✔ VWAP 方向正常: 現價 ${price:.2f} > VWAP ${vwap:.2f}")
 
-            # 跳空確認：現價對比前收盤仍需 >= gap_up_pct_min（防止跳空已完全回填）
+            # 跳空強度確認：gap% 不能跌穿掃描時的一半（失血過多）
             prev_close = self.watchlist_prev_closes.get(symbol)
             if prev_close and prev_close > 0:
-                gap_pct = (price - prev_close) / prev_close * 100
-                if gap_pct < SCANNER.gap_up_pct_min:
-                    log.info(f"{symbol}: 跳空已收窄至 {gap_pct:.1f}% (需 >= {SCANNER.gap_up_pct_min}%)，跳過進場")
+                gap_pct_now = (price - prev_close) / prev_close * 100
+                # 最低要求：gap 仍 >= gap_up_pct_min
+                if gap_pct_now < SCANNER.gap_up_pct_min:
+                    log.info(f"{symbol}: gap 已回填至 {gap_pct_now:.1f}%（需 >= {SCANNER.gap_up_pct_min}%），跳過")
                     return False
-                log.info(f"  ✔ 跳空仍有效: {gap_pct:.1f}% (前收 ${prev_close:.2f})")
+                # 額外：gap 唔可以縮到不足掃描時的一半（例如 70%→30% = 失血超過一半）
+                scan_price = self.watchlist_scan_prices.get(symbol)
+                if scan_price and scan_price > prev_close:
+                    gap_pct_at_scan = (scan_price - prev_close) / prev_close * 100
+                    if gap_pct_at_scan > 0 and gap_pct_now < gap_pct_at_scan * 0.5:
+                        log.info(f"{symbol}: gap 由 {gap_pct_at_scan:.1f}% 縮至 {gap_pct_now:.1f}%（失血超過一半），跳過")
+                        return False
+                log.info(f"  ✔ gap 仍強: {gap_pct_now:.1f}% (前收 ${prev_close:.2f})")
 
             # 計算 ATR-based 止蝕位（上下限 2%-8%）
             atr = self.ibkr.get_atr(contract)
