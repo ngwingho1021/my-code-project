@@ -400,6 +400,12 @@ class TradingEngine:
                 log.debug(f"{symbol}: 價格 ${price:.2f} 超出範圍")
                 return False
 
+            # 方向確認：現價需高於掃描時嘅價格（跌緊就唔入）
+            scan_price = self.watchlist_scan_prices.get(symbol)
+            if scan_price and price < scan_price:
+                log.info(f"{symbol}: 現價 ${price:.2f} < 掃描價 ${scan_price:.2f}，股價向下，跳過進場")
+                return False
+
             # 跳空確認：現價對比前收盤仍需 >= gap_up_pct_min（防止跳空已完全回填）
             prev_close = self.watchlist_prev_closes.get(symbol)
             if prev_close and prev_close > 0:
