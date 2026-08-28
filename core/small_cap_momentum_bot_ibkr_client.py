@@ -187,6 +187,36 @@ class IBKRClient:
             log.error(f"查詢帳戶持倉失敗: {e}")
             return -1  # -1 = 查詢失敗
 
+    def get_atr(self, contract, period: int = 14) -> float:
+        """計算 ATR(14)，用日線 True Range"""
+        try:
+            bars = self.ib.reqHistoricalData(
+                contract,
+                endDateTime="",
+                durationStr="20 D",
+                barSizeSetting="1 day",
+                whatToShow="TRADES",
+                useRTH=True
+            )
+            bars = list(bars) if bars else []
+            if len(bars) < period + 1:
+                log.warning(f"ATR 數據不足: {len(bars)} 條 (需要 {period + 1})")
+                return None
+
+            true_ranges = []
+            for i in range(1, len(bars)):
+                high = bars[i].high
+                low = bars[i].low
+                prev_close = bars[i - 1].close
+                tr = max(high - low, abs(high - prev_close), abs(low - prev_close))
+                true_ranges.append(tr)
+
+            atr = sum(true_ranges[-period:]) / period
+            return round(atr, 4)
+        except Exception as e:
+            log.error(f"計算 ATR 失敗: {e}")
+            return None
+
     def get_historical_data(self, contract, duration: str = "20 D", bar_size: str = "1 day"):
         """獲取歷史數據"""
         try:

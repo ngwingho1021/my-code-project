@@ -391,10 +391,17 @@ class TradingEngine:
                 log.debug(f"{symbol}: 價格 ${price:.2f} 超出範圍")
                 return False
 
-            # 計算止蝕價格（5% 止損）
-            stop_price = round(price * (1 - STOP_LOSS_PCT), 2)
-
-            log.info(f"🎯 發現進場機會: {symbol} @ ${price:.2f}, 止蝕 @ ${stop_price:.2f}")
+            # 計算 ATR-based 止蝕位（上下限 2%-8%）
+            atr = self.ibkr.get_atr(contract)
+            if atr and atr > 0:
+                stop_distance = atr * 1.0
+                stop_distance = max(stop_distance, price * 0.02)  # 最少 2%
+                stop_distance = min(stop_distance, price * 0.08)  # 最多 8%
+                stop_price = round(price - stop_distance, 2)
+                log.info(f"🎯 {symbol} @ ${price:.2f} | ATR={atr:.3f} | 止蝕距離 {stop_distance/price*100:.1f}% @ ${stop_price:.2f}")
+            else:
+                stop_price = round(price * (1 - STOP_LOSS_PCT), 2)
+                log.info(f"🎯 {symbol} @ ${price:.2f} | ATR不可用，用固定 {STOP_LOSS_PCT*100:.0f}% | 止蝕 @ ${stop_price:.2f}")
 
             # 執行進場
             return self.execute_entry(symbol, contract, price, stop_price)
