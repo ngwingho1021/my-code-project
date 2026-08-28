@@ -56,6 +56,7 @@ class TradingEngine:
         self.watchlist = {}                     # symbol -> contract
         self.watchlist_scan_prices = {}         # symbol -> price at scan time
         self.watchlist_prev_closes = {}         # symbol -> previous day close
+        self.watchlist_last_vwap = {}           # symbol -> last known VWAP (for direction check)
         self.tickers = {}                       # symbol -> streaming ticker
         self.rejected_symbols = set()           # 被 IBKR 拒絕嘅股票
         self.running = False
@@ -135,6 +136,7 @@ class TradingEngine:
                         self.watchlist.clear()
                         self.watchlist_scan_prices.clear()
                         self.watchlist_prev_closes.clear()
+                        self.watchlist_last_vwap.clear()
                         log.info("🔄 新交易日，清空監控名單")
 
                 # 只在交易時間掃描新機會
@@ -208,6 +210,7 @@ class TradingEngine:
             del self.watchlist[symbol]
             self.watchlist_scan_prices.pop(symbol, None)
             self.watchlist_prev_closes.pop(symbol, None)
+            self.watchlist_last_vwap.pop(symbol, None)
 
         if to_remove:
             log.info(f"監控名單清理完成，移除 {len(to_remove)} 隻，剩餘 {len(self.watchlist)} 隻")
@@ -400,11 +403,32 @@ class TradingEngine:
                 log.debug(f"{symbol}: 價格 ${price:.2f} 超出範圍")
                 return False
 
-            # 方向確認：現價需高於掃描時嘅價格（跌緊就唔入）
-            scan_price = self.watchlist_scan_prices.get(symbol)
-            if scan_price and price < scan_price:
-                log.info(f"{symbol}: 現價 ${price:.2f} < 掃描價 ${scan_price:.2f}，股價向下，跳過進場")
-                return False
+            # VWAP 方向過濾：價格由高位回落 + VWAP 向下 = 唔入場
+            vwap = None
+            try:
+                v = getattr(ticker, 'vwap', None)
+                if v is not None:
+                    vf = float(v)
+                    if vf > 0 and vf == vf:  # nan guard
+                        vwap = round(vf, 2)
+            except (TypeError, ValueError):
+                pass
+
+            if vwap:
+                last_vwap = self.watchlist_last_vwap.get(symbol)
+                self.watchlist_last_vwap[symbol] = vwap  # 更新記錄
+
+                price_below_vwap = price < vwap
+                vwap_declining = last_vwap is not None and vwap < last_vwap
+
+                if price_below_vwap:
+                    log.info(f"{symbol}: 現價 ${price:.2f} 跌穿 VWAP ${vwap:.2f}，唔進場")
+                    return False
+                if vwap_declining:
+                    log.info(f"{symbol}: VWAP 向下 (${last_vwap:.2f}→${vwap:.2f})，唔進場")
+                    return False
+
+                log.info(f"  ✔ VWAP 方向正常: 現價 ${price:.2f} > VWAP ${vwap:.2f}")
 
             # 跳空確認：現價對比前收盤仍需 >= gap_up_pct_min（防止跳空已完全回填）
             prev_close = self.watchlist_prev_closes.get(symbol)
