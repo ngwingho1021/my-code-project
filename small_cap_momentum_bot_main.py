@@ -54,6 +54,7 @@ class TradingEngine:
         self.position_mgr = PositionManager()   # 持倉管理
         self.stock_selector = StockSelector()   # 5支柱篩選
         self.watchlist = {}                     # symbol -> contract
+        self.watchlist_scan_prices = {}         # symbol -> price at scan time
         self.tickers = {}                       # symbol -> streaming ticker
         self.rejected_symbols = set()           # 被 IBKR 拒絕嘅股票
         self.running = False
@@ -128,6 +129,7 @@ class TradingEngine:
                     # 每日重置：新的交易日清空監控名單
                     if time_status.startswith("Pre-Market"):
                         self.watchlist.clear()
+                        self.watchlist_scan_prices.clear()
                         log.info("🔄 新交易日，清空監控名單")
 
                 # 只在交易時間掃描新機會
@@ -151,13 +153,12 @@ class TradingEngine:
                 time.sleep(MANAGE_INTERVAL_SEC * 2)
 
     def cleanup_watchlist(self):
-        """清理監控名單：移除未持倉且股價已超出範圍嘅股票"""
+        """清理監控名單：移除未持倉且不再符合入場條件嘅股票"""
         to_remove = []
         for symbol, contract in list(self.watchlist.items()):
             if self.order_sm.get_position(symbol):
                 continue  # 有持倉，唔清除
 
-            # 用 streaming ticker 或 snapshot 查最新價
             ticker = self.tickers.get(symbol)
             if ticker is None:
                 ticker = self.ibkr.get_market_data(contract, timeout=1)
@@ -174,12 +175,33 @@ class TradingEngine:
                     except (TypeError, ValueError):
                         pass
 
-            if price is not None and (price < SCANNER.price_min or price > SCANNER.price_max):
+            if price is None:
+                continue
+
+            reason = None
+
+            # 條件 1：價格超出 $2-$20 範圍
+            if price < SCANNER.price_min or price > SCANNER.price_max:
+                reason = f"股價 ${price:.2f} 超出範圍"
+
+            # 條件 2：距離掃描時價格太遠（動能消失或已跑太遠）
+            if reason is None and symbol in self.watchlist_scan_prices:
+                scan_price = self.watchlist_scan_prices[symbol]
+                drop_pct = (scan_price - price) / scan_price        # 跌幅
+                run_pct = (price - scan_price) / scan_price          # 升幅
+
+                if drop_pct >= STOP_LOSS_PCT:                        # 跌 >= 5%：動能消失
+                    reason = f"較掃描價 ${scan_price:.2f} 跌 {drop_pct*100:.1f}%，動能消失"
+                elif run_pct >= 0.20:                                 # 升 >= 20%：已跑太遠，入場係追貨
+                    reason = f"較掃描價 ${scan_price:.2f} 升 {run_pct*100:.1f}%，已跑太遠"
+
+            if reason:
                 to_remove.append(symbol)
-                log.info(f"🗑️ 清出監控名單: {symbol} 股價 ${price:.2f} 超出範圍 (${SCANNER.price_min}-${SCANNER.price_max})")
+                log.info(f"🗑️ 清出監控名單: {symbol} — {reason}")
 
         for symbol in to_remove:
             del self.watchlist[symbol]
+            self.watchlist_scan_prices.pop(symbol, None)
 
         if to_remove:
             log.info(f"監控名單清理完成，移除 {len(to_remove)} 隻，剩餘 {len(self.watchlist)} 隻")
@@ -246,8 +268,24 @@ class TradingEngine:
             if self.order_sm.get_position(symbol):
                 continue
 
+            # 記錄掃描時嘅價格，用嚟日後判斷係咪仍接近入場條件
+            scan_ticker = self.ibkr.get_market_data(contract, timeout=1)
+            scan_price = None
+            if scan_ticker:
+                for attr in ['last', 'bid']:
+                    val = getattr(scan_ticker, attr, None)
+                    try:
+                        v = float(val)
+                        if v > 0 and v == v:
+                            scan_price = round(v, 2)
+                            break
+                    except (TypeError, ValueError):
+                        pass
+
             self.watchlist[symbol] = contract
-            log.info(f"✅ 加入監控: {symbol}")
+            if scan_price:
+                self.watchlist_scan_prices[symbol] = scan_price
+            log.info(f"✅ 加入監控: {symbol} @ ${scan_price:.2f}" if scan_price else f"✅ 加入監控: {symbol}")
             added += 1
 
         log.info(f"監控名單: {list(self.watchlist.keys())} ({len(self.watchlist)} 隻)")
