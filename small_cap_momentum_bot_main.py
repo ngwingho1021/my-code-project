@@ -99,6 +99,9 @@ class TradingEngine:
             self.ib = self.ibkr.connect()
             log.info(f"✅ 已連接 IBKR")
 
+            # 同步現有持倉（重啟後唔重複開倉）
+            self.sync_existing_positions()
+
             self.running = True
             self.run_loop()
 
@@ -653,6 +656,51 @@ class TradingEngine:
 
         except Exception as e:
             log.error(f"離場執行失敗 {symbol}: {e}")
+
+    def sync_existing_positions(self):
+        """啟動時同步 IBKR 現有持倉，防止重啟後重複開倉"""
+        try:
+            positions = self.ib.positions()
+            synced = 0
+            for pos in positions:
+                if pos.position <= 0:
+                    continue
+                contract = pos.contract
+                symbol = contract.symbol
+                shares = int(pos.position)
+                avg_cost = round(pos.avgCost, 2)
+
+                # 只同步小市值範圍嘅股票
+                if not (SCANNER.price_min <= avg_cost <= SCANNER.price_max):
+                    continue
+
+                # 已在追蹤中就跳過
+                if self.order_sm.get_position(symbol):
+                    continue
+
+                stop_price = round(avg_cost * (1 - STOP_LOSS_PCT), 2)
+
+                # 同步入內部狀態
+                self.watchlist[symbol] = contract
+                self.position_mgr.current_positions[symbol] = shares
+                sm_pos = self.order_sm.create_position(symbol, avg_cost, shares, stop_price)
+                sm_pos.mark_entered(0)
+
+                # 訂閱串流數據
+                ticker = self.ibkr.subscribe_market_data(contract)
+                if ticker:
+                    self.tickers[symbol] = ticker
+
+                log.info(f"🔄 同步現有持倉: {symbol} {shares}股 @ ${avg_cost:.2f}, 止蝕 ${stop_price:.2f}")
+                synced += 1
+
+            if synced:
+                log.info(f"✅ 同步完成，{synced} 個現有持倉已載入")
+            else:
+                log.info("📭 IBKR 無現有小市值持倉")
+
+        except Exception as e:
+            log.error(f"同步現有持倉失敗: {e}")
 
     def shutdown(self):
         """安全關閉機械人"""
