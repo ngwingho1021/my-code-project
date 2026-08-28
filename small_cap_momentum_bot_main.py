@@ -150,11 +150,48 @@ class TradingEngine:
                 traceback.print_exc()
                 time.sleep(MANAGE_INTERVAL_SEC * 2)
 
+    def cleanup_watchlist(self):
+        """清理監控名單：移除未持倉且股價已超出範圍嘅股票"""
+        to_remove = []
+        for symbol, contract in list(self.watchlist.items()):
+            if self.order_sm.get_position(symbol):
+                continue  # 有持倉，唔清除
+
+            # 用 streaming ticker 或 snapshot 查最新價
+            ticker = self.tickers.get(symbol)
+            if ticker is None:
+                ticker = self.ibkr.get_market_data(contract, timeout=1)
+
+            price = None
+            if ticker:
+                for attr in ['last', 'bid']:
+                    val = getattr(ticker, attr, None)
+                    try:
+                        v = float(val)
+                        if v > 0 and v == v:
+                            price = round(v, 2)
+                            break
+                    except (TypeError, ValueError):
+                        pass
+
+            if price is not None and (price < SCANNER.price_min or price > SCANNER.price_max):
+                to_remove.append(symbol)
+                log.info(f"🗑️ 清出監控名單: {symbol} 股價 ${price:.2f} 超出範圍 (${SCANNER.price_min}-${SCANNER.price_max})")
+
+        for symbol in to_remove:
+            del self.watchlist[symbol]
+
+        if to_remove:
+            log.info(f"監控名單清理完成，移除 {len(to_remove)} 隻，剩餘 {len(self.watchlist)} 隻")
+
     def scan_and_update_watchlist(self):
         """掃描 5 支柱股票，更新監控名單（僅在交易時間）"""
         if not self.is_trading_hours():
             log.warning(f"非交易時間 ({self.get_time_status()})，跳過掃描")
             return
+
+        # 先清理名單中已不符合條件嘅股票
+        self.cleanup_watchlist()
 
         # 檢查是否還有空位
         active_positions = self.order_sm.get_active_positions()
