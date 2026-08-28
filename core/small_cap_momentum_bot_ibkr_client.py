@@ -69,13 +69,21 @@ class IBKRClient:
             log.error(f"合約確認失敗: {e}")
             raise
 
+    @staticmethod
+    def _smart_contract(contract):
+        """落單時強制用 SMART 路由，避免 Error 10311 direct routing"""
+        from copy import copy
+        c = copy(contract)
+        c.exchange = "SMART"
+        return c
+
     def place_buy_order(self, contract, quantity: int, limit_price: float):
         """下買單（限價）"""
         try:
             order = LimitOrder("BUY", quantity, limit_price)
             order.tif = "GTC"
             order.outsideRth = True
-            trade = self.ib.placeOrder(contract, order)
+            trade = self.ib.placeOrder(self._smart_contract(contract), order)
             log.info(f"下買單: {quantity} @ ${limit_price:.2f} (GTC, outsideRth)")
             self.ib.sleep(2)
             if trade.orderStatus.status == "Cancelled":
@@ -92,7 +100,7 @@ class IBKRClient:
             order = LimitOrder("SELL", quantity, limit_price)
             order.tif = "GTC"
             order.outsideRth = True
-            trade = self.ib.placeOrder(contract, order)
+            trade = self.ib.placeOrder(self._smart_contract(contract), order)
             log.info(f"下賣單: {quantity} @ ${limit_price:.2f} (GTC, outsideRth)")
             self.ib.sleep(2)
             if trade.orderStatus.status == "Cancelled":
@@ -108,7 +116,7 @@ class IBKRClient:
         try:
             order = MarketOrder("SELL", quantity)
             order.tif = "DAY"   # 市價單即成即走，唔需要 GTC 或 outsideRth
-            trade = self.ib.placeOrder(contract, order)
+            trade = self.ib.placeOrder(self._smart_contract(contract), order)
             log.info(f"下市價賣單: {quantity}股 (DAY)")
             self.ib.sleep(2)
             if trade.orderStatus.status == "Cancelled":
@@ -124,7 +132,7 @@ class IBKRClient:
         try:
             order = StopLimitOrder("SELL", quantity, stop_price, limit_price)
             order.tif = "GTC"  # Good Till Cancelled
-            trade = self.ib.placeOrder(contract, order)
+            trade = self.ib.placeOrder(self._smart_contract(contract), order)
             log.info(f"下止蝕單: {quantity} @ 止蝕 ${stop_price:.2f} 限價 ${limit_price:.2f}")
             return trade
         except Exception as e:
