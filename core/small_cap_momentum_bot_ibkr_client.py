@@ -94,12 +94,24 @@ class IBKRClient:
             log.error(f"下買單失敗: {e}")
             return None
 
+    def get_position_shares(self, symbol: str) -> int:
+        """查 IBKR 帳戶持有某股票嘅實際股數（唔包括 pending 單）"""
+        try:
+            positions = self.ib.positions()
+            for p in positions:
+                if p.contract.symbol == symbol and p.position > 0:
+                    return int(p.position)
+            return 0
+        except Exception as e:
+            log.error(f"查詢 {symbol} 持股數量失敗: {e}")
+            return -1  # -1 = 查詢失敗
+
     def place_sell_order(self, contract, quantity: int, limit_price: float):
         """下賣單（限價）"""
         try:
             order = LimitOrder("SELL", quantity, limit_price)
-            order.tif = "GTC"
-            order.outsideRth = True
+            order.tif = "DAY"   # DAY：當日唔填就作廢，防止 GTC 積單 + 新賣單雙重成交做空
+            order.outsideRth = False
             trade = self.ib.placeOrder(self._smart_contract(contract), order)
             log.info(f"下賣單: {quantity} @ ${limit_price:.2f} (GTC, outsideRth)")
             self.ib.sleep(2)

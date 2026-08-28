@@ -686,6 +686,23 @@ class TradingEngine:
             if qty <= 0:
                 return
 
+            # 防做空：對比 IBKR 實際持股，確保唔超賣
+            ibkr_qty = self.ibkr.get_position_shares(symbol)
+            if ibkr_qty == 0:
+                log.warning(f"⚠️ {symbol}: IBKR 顯示無持倉，唔落賣單（防止做空），清理內部狀態")
+                pos.remaining_shares = 0
+                pos.mark_exited(exit_price)
+                self.position_mgr.current_positions.pop(symbol, None)
+                self.watchlist.pop(symbol, None)
+                self.order_sm.remove_position(symbol)
+                if symbol in self.tickers:
+                    self.ibkr.unsubscribe_market_data(contract)
+                    del self.tickers[symbol]
+                return
+            if ibkr_qty > 0 and qty > ibkr_qty:
+                log.warning(f"⚠️ {symbol}: 嘗試賣 {qty} 股，但 IBKR 只有 {ibkr_qty} 股，截頭至 {ibkr_qty}")
+                qty = ibkr_qty
+
             if reason in ("stop_loss", "trailing_stop"):
                 trade = self.ibkr.place_market_sell_order(contract, qty)
             elif reason == "premarket_stop_loss":
