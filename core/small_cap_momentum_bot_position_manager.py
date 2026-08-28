@@ -103,11 +103,6 @@ class PositionManager:
             log.warning(f"{symbol} 已有倉位，唔可以重複開倉")
             return False
 
-        # 內部即時計數（防止同一迴圈因 IBKR 延遲而入多個倉）
-        if len(self.current_positions) >= ACCOUNT_RISK.max_concurrent_positions:
-            log.warning(f"內部持倉已達上限 ({len(self.current_positions)}/{ACCOUNT_RISK.max_concurrent_positions})")
-            return False
-
         # 檢查每日交易次數限制
         if self.day_trades >= ACCOUNT_RISK.max_trades_per_day:
             log.warning(f"已達到每日最多交易次數 ({ACCOUNT_RISK.max_trades_per_day})")

@@ -370,10 +370,13 @@ class TradingEngine:
         if symbol in self.rejected_symbols:
             return False
 
-        # 查 IBKR 帳戶真實小市值持倉（同一帳戶有其他 bot）
+        # 第一層：內部即時計數（防止同一迴圈因 IBKR 延遲而重複入倉，唔 log）
+        if len(self.position_mgr.current_positions) >= ACCOUNT_RISK.max_concurrent_positions:
+            return False
+
+        # 第二層：IBKR 真實持倉（權威來源，修正 stale 內部 counter 或其他 bot 嘅倉）
         real_count = self.ibkr.get_small_cap_position_count(SCANNER.price_min, SCANNER.price_max)
         if real_count >= 0 and real_count >= ACCOUNT_RISK.max_concurrent_positions:
-            log.info(f"帳戶真實小市值持倉 {real_count}/{ACCOUNT_RISK.max_concurrent_positions}，跳過進場")
             return False
 
         if not self.position_mgr.can_open_position(symbol):
