@@ -32,7 +32,7 @@ trade_log = get_logger("trades")
 
 SCAN_INTERVAL_SEC = 60
 MANAGE_INTERVAL_SEC = 1
-MAX_WATCHLIST_SIZE = 8
+MAX_WATCHLIST_SIZE = 15
 STOP_LOSS_PCT = 0.05
 
 # 交易時間（EST 時區）
