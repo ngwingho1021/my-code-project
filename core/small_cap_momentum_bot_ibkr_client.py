@@ -104,13 +104,12 @@ class IBKRClient:
             return None
 
     def place_market_sell_order(self, contract, quantity: int):
-        """下賣單（市價）- 用於止蝕"""
+        """下賣單（市價）- 用於止蝕，只在盤中用"""
         try:
             order = MarketOrder("SELL", quantity)
-            order.tif = "GTC"
-            order.outsideRth = True
+            order.tif = "DAY"   # 市價單即成即走，唔需要 GTC 或 outsideRth
             trade = self.ib.placeOrder(contract, order)
-            log.info(f"下市價賣單: {quantity}股 (GTC, outsideRth)")
+            log.info(f"下市價賣單: {quantity}股 (DAY)")
             self.ib.sleep(2)
             if trade.orderStatus.status == "Cancelled":
                 log.error(f"市價賣單被取消: {contract.symbol}")
