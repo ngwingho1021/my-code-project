@@ -224,6 +224,22 @@ class IBKRClient:
             log.error(f"計算 ATR 失敗: {e}")
             return None
 
+    def get_prev_close(self, contract) -> float:
+        """獲取前一日收盤價，用於計算開盤跳空 %"""
+        try:
+            bars = self.ib.reqHistoricalData(
+                contract, endDateTime="", durationStr="3 D",
+                barSizeSetting="1 day", whatToShow="TRADES", useRTH=True
+            )
+            bars = list(bars) if bars else []
+            # bars[-1] 可能係今日（仍未收市），bars[-2] 係昨日收盤
+            if len(bars) < 2:
+                return None
+            return round(bars[-2].close, 4)
+        except Exception as e:
+            log.error(f"獲取前收盤價失敗: {e}")
+            return None
+
     def get_historical_data(self, contract, duration: str = "20 D", bar_size: str = "1 day"):
         """獲取歷史數據"""
         try:

@@ -32,7 +32,7 @@ trade_log = get_logger("trades")
 
 SCAN_INTERVAL_SEC = 60
 MANAGE_INTERVAL_SEC = 1
-MAX_WATCHLIST_SIZE = 15
+MAX_WATCHLIST_SIZE = 8
 STOP_LOSS_PCT = 0.05
 
 # 交易時間（EST 時區）
@@ -55,6 +55,7 @@ class TradingEngine:
         self.stock_selector = StockSelector()   # 5支柱篩選
         self.watchlist = {}                     # symbol -> contract
         self.watchlist_scan_prices = {}         # symbol -> price at scan time
+        self.watchlist_prev_closes = {}         # symbol -> previous day close
         self.tickers = {}                       # symbol -> streaming ticker
         self.rejected_symbols = set()           # 被 IBKR 拒絕嘅股票
         self.running = False
@@ -133,6 +134,7 @@ class TradingEngine:
                     if time_status.startswith("Pre-Market"):
                         self.watchlist.clear()
                         self.watchlist_scan_prices.clear()
+                        self.watchlist_prev_closes.clear()
                         log.info("🔄 新交易日，清空監控名單")
 
                 # 只在交易時間掃描新機會
@@ -205,6 +207,7 @@ class TradingEngine:
         for symbol in to_remove:
             del self.watchlist[symbol]
             self.watchlist_scan_prices.pop(symbol, None)
+            self.watchlist_prev_closes.pop(symbol, None)
 
         if to_remove:
             log.info(f"監控名單清理完成，移除 {len(to_remove)} 隻，剩餘 {len(self.watchlist)} 隻")
@@ -285,10 +288,16 @@ class TradingEngine:
                     except (TypeError, ValueError):
                         pass
 
+            # 獲取前收盤價（用於入場時驗證跳空仍然有效）
+            prev_close = self.ibkr.get_prev_close(contract)
+
             self.watchlist[symbol] = contract
             if scan_price:
                 self.watchlist_scan_prices[symbol] = scan_price
-            log.info(f"✅ 加入監控: {symbol} @ ${scan_price:.2f}" if scan_price else f"✅ 加入監控: {symbol}")
+            if prev_close:
+                self.watchlist_prev_closes[symbol] = prev_close
+            gap_str = f" gap={((scan_price - prev_close) / prev_close * 100):.1f}%" if (scan_price and prev_close) else ""
+            log.info(f"✅ 加入監控: {symbol} @ ${scan_price:.2f}{gap_str}" if scan_price else f"✅ 加入監控: {symbol}")
             added += 1
 
         log.info(f"監控名單: {list(self.watchlist.keys())} ({len(self.watchlist)} 隻)")
@@ -390,6 +399,15 @@ class TradingEngine:
             if price < SCANNER.price_min or price > SCANNER.price_max:
                 log.debug(f"{symbol}: 價格 ${price:.2f} 超出範圍")
                 return False
+
+            # 跳空確認：現價對比前收盤仍需 >= gap_up_pct_min（防止跳空已完全回填）
+            prev_close = self.watchlist_prev_closes.get(symbol)
+            if prev_close and prev_close > 0:
+                gap_pct = (price - prev_close) / prev_close * 100
+                if gap_pct < SCANNER.gap_up_pct_min:
+                    log.info(f"{symbol}: 跳空已收窄至 {gap_pct:.1f}% (需 >= {SCANNER.gap_up_pct_min}%)，跳過進場")
+                    return False
+                log.info(f"  ✔ 跳空仍有效: {gap_pct:.1f}% (前收 ${prev_close:.2f})")
 
             # 計算 ATR-based 止蝕位（上下限 2%-8%）
             atr = self.ibkr.get_atr(contract)

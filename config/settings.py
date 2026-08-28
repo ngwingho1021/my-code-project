@@ -18,7 +18,7 @@ PAPER_TRADING = True   # 一定要保持 True，直至你完全信得過個系�
 @dataclass
 class AccountRisk:
     account_size: float = 5000.0
-    max_trades_per_day: int = 20
+    max_trades_per_day: int = 6
     max_concurrent_positions: int = 5   # HARD LIMIT: 最多 5 個位（靠 IBKR 實時查詢）
     max_loss_per_trade: float = 100.0
     max_loss_per_day: float = 300.0
