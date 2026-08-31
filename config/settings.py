@@ -39,6 +39,7 @@ class ScannerCriteria:
     rel_volume_min: float = 2.0
     min_avg_volume: float = 300_000      # 過濾完全冇流動性嘅股
     require_catalyst: bool = False        # False = 冇新聞都可以進場（只係降低信心分）
+    max_drop_from_high_pct: float = 0.25  # 現價距日高超過 25% = 動能已過，唔入場
 
 
 @dataclass

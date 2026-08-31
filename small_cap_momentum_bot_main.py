@@ -414,6 +414,27 @@ class TradingEngine:
                 log.debug(f"{symbol}: 價格 ${price:.2f} 超出範圍")
                 return False
 
+            # 距日高過遠過濾：股票已從早上高位大幅回落，動能已過
+            day_high = None
+            try:
+                h = getattr(ticker, 'high', None)
+                if h is not None:
+                    hf = float(h)
+                    if hf > 0 and hf == hf:
+                        day_high = round(hf, 2)
+            except (TypeError, ValueError):
+                pass
+
+            if day_high and day_high > 0 and price < day_high:
+                drop_from_high_pct = (day_high - price) / day_high
+                if drop_from_high_pct > SCANNER.max_drop_from_high_pct:
+                    log.info(
+                        f"{symbol}: 現價 ${price:.2f} 距日高 ${day_high:.2f} 已跌 "
+                        f"{drop_from_high_pct*100:.1f}% (>{SCANNER.max_drop_from_high_pct*100:.0f}%)，動能已過，跳過"
+                    )
+                    return False
+                log.info(f"  ✔ 日高距離: 現價 ${price:.2f} / 日高 ${day_high:.2f} ({drop_from_high_pct*100:.1f}% 跌幅)")
+
             # VWAP 方向過濾：價格由高位回落 + VWAP 向下 = 唔入場
             vwap = None
             try:
