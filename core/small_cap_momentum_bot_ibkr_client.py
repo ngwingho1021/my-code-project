@@ -86,8 +86,8 @@ class IBKRClient:
             trade = self.ib.placeOrder(self._smart_contract(contract), order)
             log.info(f"下買單: {quantity} @ ${limit_price:.2f} (GTC, outsideRth)")
             self.ib.sleep(2)
-            if trade.orderStatus.status == "Cancelled":
-                log.error(f"買單被取消: {contract.symbol}")
+            if trade.orderStatus.status in ("Cancelled", "Inactive"):
+                log.error(f"買單被拒絕/取消: {contract.symbol} (狀態: {trade.orderStatus.status})")
                 return None
             return trade
         except Exception as e:

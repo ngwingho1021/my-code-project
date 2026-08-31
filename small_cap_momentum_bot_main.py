@@ -128,7 +128,8 @@ class TradingEngine:
                 time_status = self.get_time_status()
 
                 if time_status != last_time_status:
-                    log.info(f"⏰ 時間狀態: {time_status}")
+                    now_est = datetime.now(EST)
+                    log.info(f"⏰ 時間狀態: {time_status} [EST: {now_est.strftime('%Y-%m-%d %H:%M:%S')}]")
                     last_time_status = time_status
 
                     # 每日重置：新的交易日清空監控名單
