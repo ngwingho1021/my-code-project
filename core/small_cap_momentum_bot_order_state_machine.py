@@ -92,6 +92,7 @@ class Position:
 
     trailing_stop: float = field(default=0.0)
     highest_price: float = field(default=0.0)
+    lowest_price: float = field(default=0.0)
     took_profit_1r: bool = field(default=False)
     took_profit_2r: bool = field(default=False)
     took_profit_3r: bool = field(default=False)
@@ -109,6 +110,7 @@ class Position:
         self.remaining_shares = self.shares
         self.trailing_stop = self.initial_stop
         self.highest_price = self.entry_price
+        self.lowest_price = self.entry_price
         log.info(f"持倉 {self.symbol}: 已進場 @ {self.entry_price} ({self.shares}股)")
 
     def add_stop_order(self, order_id: int):

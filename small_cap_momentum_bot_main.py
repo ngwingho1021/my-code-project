@@ -20,7 +20,7 @@ from datetime import datetime, time as dt_time
 from typing import Optional
 import pytz
 
-from config.settings import TRADING_HOURS, ACCOUNT_RISK, SCANNER
+from config.settings import TRADING_HOURS, ACCOUNT_RISK, SCANNER, STRATEGY
 from core.small_cap_momentum_bot_ibkr_client import IBKRClient
 from core.small_cap_momentum_bot_order_state_machine import OrderStateMachine, PositionState
 from core.small_cap_momentum_bot_position_manager import PositionManager
@@ -588,9 +588,24 @@ class TradingEngine:
             target_1r = round(entry_price + risk, 2)
             target_2r = round(entry_price + (risk * 2), 2)
 
-            # 更新最高價
+            # 更新最高/最低價
             if price > pos.highest_price:
                 pos.highest_price = price
+            if pos.lowest_price == 0.0 or price < pos.lowest_price:
+                pos.lowest_price = price
+
+            # 橫行離場：持倉超過 N 分鐘且價格無方向
+            if pos.entered_at:
+                mins_held = (datetime.now() - pos.entered_at).total_seconds() / 60
+                if mins_held >= STRATEGY.sideways_timeout_min:
+                    price_range_pct = (pos.highest_price - pos.lowest_price) / pos.entry_price
+                    if price_range_pct < STRATEGY.sideways_range_pct and not pos.took_profit_1r:
+                        log.info(
+                            f"⏱️ 橫行離場: {symbol} 持倉 {mins_held:.0f}分鐘，"
+                            f"波幅僅 {price_range_pct*100:.1f}% (< {STRATEGY.sideways_range_pct*100:.0f}%)，無方向退場"
+                        )
+                        self.execute_exit(symbol, contract, pos, price, "sideways_exit", pos.remaining_shares)
+                        return
 
             # 更新 trailing stop（只升唔跌）
             if pos.took_profit_1r:

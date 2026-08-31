@@ -77,6 +77,10 @@ class StrategyParams:
 
     trailing_stop_pct: float = 0.5    # 尾段用 VWAP / 前低 作 trailing stop 參考百分比
 
+    # 橫行離場（無方向超過 N 分鐘就退場）
+    sideways_timeout_min: int = 30        # 持倉幾多分鐘後開始檢查橫行
+    sideways_range_pct: float = 0.03     # 高低波幅 < 3% = 橫行
+
 
 @dataclass
 class ExecutionSafety:
