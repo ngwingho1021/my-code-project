@@ -34,7 +34,8 @@ class ScannerCriteria:
     price_min: float = 2.0
     price_max: float = 20.0
     float_shares_max: float = 20_000_000
-    gap_up_pct_min: float = 5.0
+    gap_up_pct_min: float = 5.0           # 入場時最低 gap%（允許由高位略為回落）
+    watchlist_min_gap_pct: float = 10.0   # 加入監控名單最低 gap%（只追最強動能）
     rel_volume_min: float = 2.0
     min_avg_volume: float = 300_000      # 過濾完全冇流動性嘅股
     require_catalyst: bool = False        # False = 冇新聞都可以進場（只係降低信心分）

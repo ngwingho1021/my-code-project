@@ -291,8 +291,15 @@ class TradingEngine:
                     except (TypeError, ValueError):
                         pass
 
-            # 獲取前收盤價（用於入場時驗證跳空仍然有效）
+            # 獲取前收盤價（用於計算 gap% 及入場時驗證）
             prev_close = self.ibkr.get_prev_close(contract)
+
+            # 只監控 gap >= watchlist_min_gap_pct（10%）嘅最強動能股
+            if scan_price and prev_close and prev_close > 0:
+                gap_pct = (scan_price - prev_close) / prev_close * 100
+                if gap_pct < SCANNER.watchlist_min_gap_pct:
+                    log.info(f"⏭️ 跳過 {symbol}: gap {gap_pct:.1f}% < {SCANNER.watchlist_min_gap_pct}%（動能不足）")
+                    continue
 
             self.watchlist[symbol] = contract
             if scan_price:
