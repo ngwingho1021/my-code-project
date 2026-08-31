@@ -163,9 +163,11 @@ class IBKRClient:
         return False
 
     def get_market_data(self, contract, timeout: int = 2):
-        """獲取市場數據（snapshot，用於一次性查價）"""
+        """獲取市場數據（snapshot，用於一次性查價）
+        233 = RT Volume（包含今日 VWAP）
+        """
         try:
-            ticker = self.ib.reqMktData(contract, "", False, False)
+            ticker = self.ib.reqMktData(contract, "233", False, False)
             self.ib.sleep(timeout)
             self.ib.cancelMktData(contract)
             return ticker
@@ -176,7 +178,7 @@ class IBKRClient:
     def subscribe_market_data(self, contract):
         """訂閱持續串流數據 - 返回 ticker，後台自動更新"""
         try:
-            ticker = self.ib.reqMktData(contract, "", False, False)
+            ticker = self.ib.reqMktData(contract, "233", False, False)
             self.ib.sleep(0.5)  # 等首個 tick
             log.info(f"已訂閱串流數據: {contract.symbol}")
             return ticker
