@@ -747,7 +747,7 @@ class TradingEngine:
                 log.warning(f"⚠️ {symbol}: 嘗試賣 {qty} 股，但 IBKR 只有 {ibkr_qty} 股，截頭至 {ibkr_qty}")
                 qty = ibkr_qty
 
-            if reason in ("stop_loss", "trailing_stop"):
+            if reason in ("stop_loss", "trailing_stop", "sideways_exit"):
                 trade = self.ibkr.place_market_sell_order(contract, qty)
             elif reason == "premarket_stop_loss":
                 trade = self.ibkr.place_sell_order(contract, qty, exit_price)
