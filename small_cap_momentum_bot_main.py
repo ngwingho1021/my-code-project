@@ -275,6 +275,16 @@ class TradingEngine:
             if symbol in self.rejected_symbols:
                 continue
 
+            # 過濾 ETF/ETN、SPAC unit、warrant、rights
+            if symbol in SCANNER.banned_symbols:
+                log.info(f"⏭️ 跳過 {symbol}: 在黑名單（ETF/ETN）")
+                self.rejected_symbols.add(symbol)
+                continue
+            if any(symbol.endswith(sfx) for sfx in SCANNER.banned_suffixes):
+                log.info(f"⏭️ 跳過 {symbol}: 後綴 = SPAC unit/warrant/rights，唔交易")
+                self.rejected_symbols.add(symbol)
+                continue
+
             if self.order_sm.get_position(symbol):
                 continue
 
