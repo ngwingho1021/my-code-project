@@ -21,7 +21,7 @@ class AccountRisk:
     max_trades_per_day: int = 12
     max_concurrent_positions: int = 4   # HARD LIMIT: 最多 4 個位（靠 IBKR 實時查詢）
     max_loss_per_trade: float = 100.0
-    max_loss_per_day: float = 300.0
+    max_loss_per_day: float = 500.0
     max_loss_per_week: float = 800.0
     # 單一持倉最多用幾多百分比本金（避免一注獨大）
     max_position_pct_of_account: float = 0.35
