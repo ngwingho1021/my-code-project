@@ -318,7 +318,7 @@ class TradingEngine:
             # 平均成交量 + RVOL 過濾
             avg_vol = self.ibkr.get_avg_volume(contract)
             if avg_vol < SCANNER.min_avg_volume:
-                log.info(f"⏭️ 跳過 {symbol}: 20日均量 {avg_vol:,.0f} < {SCANNER.min_avg_volume:,.0f}，流動性不足")
+                log.info(f"⏭️ 跳過 {symbol}: 10日均量 {avg_vol:,.0f} < {SCANNER.min_avg_volume:,.0f}，流動性不足")
                 continue
 
             if scan_ticker:

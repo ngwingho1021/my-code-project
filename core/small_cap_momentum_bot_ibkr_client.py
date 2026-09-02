@@ -269,7 +269,7 @@ class IBKRClient:
             log.error(f"獲取流通股數失敗: {e}")
             return None
 
-    def get_avg_volume(self, contract, days: int = 20) -> float:
+    def get_avg_volume(self, contract, days: int = 10) -> float:
         """計算過去 N 日平均成交量，用於 RVOL 計算"""
         try:
             bars = self.ib.reqHistoricalData(
