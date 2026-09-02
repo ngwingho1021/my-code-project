@@ -238,6 +238,26 @@ class IBKRClient:
             log.error(f"計算 ATR 失敗: {e}")
             return None
 
+    def get_avg_volume(self, contract, days: int = 20) -> float:
+        """計算過去 N 日平均成交量，用於 RVOL 計算"""
+        try:
+            bars = self.ib.reqHistoricalData(
+                contract,
+                endDateTime="",
+                durationStr=f"{days + 5} D",
+                barSizeSetting="1 day",
+                whatToShow="TRADES",
+                useRTH=True
+            )
+            bars = list(bars) if bars else []
+            if len(bars) < days:
+                return 0.0
+            volumes = [b.volume for b in bars[-days:] if b.volume and b.volume > 0]
+            return sum(volumes) / len(volumes) if volumes else 0.0
+        except Exception as e:
+            log.error(f"計算平均成交量失敗: {e}")
+            return 0.0
+
     def get_prev_close(self, contract) -> float:
         """獲取前一日收盤價，用於計算開盤跳空 %"""
         try:

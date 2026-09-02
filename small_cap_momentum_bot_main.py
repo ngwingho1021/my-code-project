@@ -57,6 +57,7 @@ class TradingEngine:
         self.watchlist_scan_prices = {}         # symbol -> price at scan time
         self.watchlist_prev_closes = {}         # symbol -> previous day close
         self.watchlist_last_vwap = {}           # symbol -> last known VWAP (for direction check)
+        self.watchlist_avg_volumes = {}         # symbol -> 20-day avg daily volume (for RVOL)
         self.tickers = {}                       # symbol -> streaming ticker
         self.rejected_symbols = set()           # 被 IBKR 拒絕嘅股票
         self.running = False
@@ -138,6 +139,7 @@ class TradingEngine:
                         self.watchlist_scan_prices.clear()
                         self.watchlist_prev_closes.clear()
                         self.watchlist_last_vwap.clear()
+                        self.watchlist_avg_volumes.clear()
                         log.info("🔄 新交易日，清空監控名單")
 
                 # 只在交易時間掃描新機會
@@ -212,6 +214,7 @@ class TradingEngine:
             self.watchlist_scan_prices.pop(symbol, None)
             self.watchlist_prev_closes.pop(symbol, None)
             self.watchlist_last_vwap.pop(symbol, None)
+            self.watchlist_avg_volumes.pop(symbol, None)
 
         if to_remove:
             log.info(f"監控名單清理完成，移除 {len(to_remove)} 隻，剩餘 {len(self.watchlist)} 隻")
@@ -312,11 +315,35 @@ class TradingEngine:
                     log.info(f"⏭️ 跳過 {symbol}: gap {gap_pct:.1f}% < {SCANNER.watchlist_min_gap_pct}%（動能不足）")
                     continue
 
+            # 平均成交量 + RVOL 過濾
+            avg_vol = self.ibkr.get_avg_volume(contract)
+            if avg_vol < SCANNER.min_avg_volume:
+                log.info(f"⏭️ 跳過 {symbol}: 20日均量 {avg_vol:,.0f} < {SCANNER.min_avg_volume:,.0f}，流動性不足")
+                continue
+
+            if scan_ticker:
+                today_vol = getattr(scan_ticker, 'volume', None)
+                try:
+                    today_vol = float(today_vol) if today_vol else 0.0
+                except (TypeError, ValueError):
+                    today_vol = 0.0
+                if today_vol > 0 and avg_vol > 0 and self.is_market_hours():
+                    now_est = datetime.now(EST)
+                    market_open_t = now_est.replace(hour=9, minute=30, second=0, microsecond=0)
+                    elapsed_min = max(1.0, (now_est - market_open_t).total_seconds() / 60)
+                    elapsed_frac = min(elapsed_min / 390.0, 1.0)
+                    rvol = today_vol / (avg_vol * elapsed_frac)
+                    if rvol < SCANNER.rel_volume_min:
+                        log.info(f"⏭️ 跳過 {symbol}: RVOL {rvol:.1f}x < {SCANNER.rel_volume_min}x（動能不足）")
+                        continue
+                    log.info(f"  ✔ RVOL: {rvol:.1f}x")
+
             self.watchlist[symbol] = contract
             if scan_price:
                 self.watchlist_scan_prices[symbol] = scan_price
             if prev_close:
                 self.watchlist_prev_closes[symbol] = prev_close
+            self.watchlist_avg_volumes[symbol] = avg_vol
             gap_str = f" gap={((scan_price - prev_close) / prev_close * 100):.1f}%" if (scan_price and prev_close) else ""
             log.info(f"✅ 加入監控: {symbol} @ ${scan_price:.2f}{gap_str}" if scan_price else f"✅ 加入監控: {symbol}")
             added += 1
@@ -444,6 +471,43 @@ class TradingEngine:
                     )
                     return False
                 log.info(f"  ✔ 日高距離: 現價 ${price:.2f} / 日高 ${day_high:.2f} ({drop_from_high_pct*100:.1f}% 跌幅)")
+
+            # RVOL 即時確認（入場前再核一次）
+            avg_vol = self.watchlist_avg_volumes.get(symbol, 0)
+            if avg_vol > 0:
+                today_vol = None
+                try:
+                    v = getattr(ticker, 'volume', None)
+                    if v is not None:
+                        today_vol = float(v)
+                except (TypeError, ValueError):
+                    pass
+                if today_vol and today_vol > 0:
+                    now_est = datetime.now(EST)
+                    market_open_t = now_est.replace(hour=9, minute=30, second=0, microsecond=0)
+                    elapsed_min = max(1.0, (now_est - market_open_t).total_seconds() / 60)
+                    elapsed_frac = min(elapsed_min / 390.0, 1.0)
+                    rvol = today_vol / (avg_vol * elapsed_frac)
+                    if rvol < SCANNER.rel_volume_min:
+                        log.info(f"{symbol}: RVOL {rvol:.1f}x < {SCANNER.rel_volume_min}x，動能不足，跳過")
+                        return False
+                    log.info(f"  ✔ RVOL: {rvol:.1f}x")
+
+            # Bid-ask spread 流動性過濾
+            try:
+                bid_v = getattr(ticker, 'bid', None)
+                ask_v = getattr(ticker, 'ask', None)
+                if bid_v and ask_v:
+                    bid_f = float(bid_v)
+                    ask_f = float(ask_v)
+                    if bid_f > 0 and ask_f > 0 and ask_f > bid_f and price > 0:
+                        spread_pct = (ask_f - bid_f) / price
+                        if spread_pct > SCANNER.max_spread_pct:
+                            log.info(f"{symbol}: bid-ask spread {spread_pct*100:.1f}% > {SCANNER.max_spread_pct*100:.0f}%，流動性不足，跳過")
+                            return False
+                        log.info(f"  ✔ Spread: {spread_pct*100:.2f}%")
+            except (TypeError, ValueError):
+                pass
 
             # VWAP 方向過濾：價格由高位回落 + VWAP 向下 = 唔入場
             vwap = None
