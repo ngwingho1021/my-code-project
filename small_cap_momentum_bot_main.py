@@ -338,6 +338,16 @@ class TradingEngine:
                         continue
                     log.info(f"  ✔ RVOL: {rvol:.1f}x")
 
+            # Float 過濾（流通股數 < 20M）
+            float_shares = self.ibkr.get_float_shares(contract)
+            if float_shares is not None:
+                if float_shares > SCANNER.float_shares_max:
+                    log.info(f"⏭️ 跳過 {symbol}: Float {float_shares/1e6:.1f}M > {SCANNER.float_shares_max/1e6:.0f}M，唔係細 float 股")
+                    continue
+                log.info(f"  ✔ Float: {float_shares/1e6:.1f}M")
+            else:
+                log.info(f"  ⚠️ {symbol}: Float 數據不可用，寬鬆放行")
+
             self.watchlist[symbol] = contract
             if scan_price:
                 self.watchlist_scan_prices[symbol] = scan_price

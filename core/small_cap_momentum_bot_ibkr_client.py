@@ -238,6 +238,37 @@ class IBKRClient:
             log.error(f"計算 ATR 失敗: {e}")
             return None
 
+    def get_float_shares(self, contract) -> float | None:
+        """獲取流通股數（Float Shares）。返回 None = 數據不可用，唔係 0。"""
+        try:
+            xml_data = self.ib.reqFundamentalData(contract, 'ReportSnapshot')
+            if not xml_data:
+                return None
+            import xml.etree.ElementTree as ET
+            root = ET.fromstring(xml_data)
+            # 嘗試已知標籤名（IBKR XML 格式因股票而異）
+            for tag in ('sharesFloat', 'SharesFloat', 'FloatShares', 'floatShares', 'Float'):
+                for elem in root.iter(tag):
+                    try:
+                        val = float(str(elem.text).replace(',', ''))
+                        if 1_000 < val < 1e12:   # 排除明顯無效值
+                            return val
+                    except (ValueError, AttributeError, TypeError):
+                        pass
+            # 後備：搜索標籤名包含 'float' 嘅元素
+            for elem in root.iter():
+                if 'float' in elem.tag.lower() and elem.text:
+                    try:
+                        val = float(str(elem.text).replace(',', ''))
+                        if 1_000 < val < 1e10:
+                            return val
+                    except (ValueError, AttributeError, TypeError):
+                        pass
+            return None   # 冇搵到，唔係 0
+        except Exception as e:
+            log.error(f"獲取流通股數失敗: {e}")
+            return None
+
     def get_avg_volume(self, contract, days: int = 20) -> float:
         """計算過去 N 日平均成交量，用於 RVOL 計算"""
         try:
