@@ -38,7 +38,7 @@ STOP_LOSS_PCT = 0.05
 # 交易時間（EST 時區）
 PREMARKET_START = dt_time(4, 0)      # 04:00
 MARKET_OPEN = dt_time(9, 30)         # 09:30
-FORCE_CLOSE_TIME = dt_time(15, 55)   # 15:55 強制平倉
+FORCE_CLOSE_TIME = dt_time(15, 30)   # 15:30 強制平倉
 MARKET_CLOSE = dt_time(16, 0)        # 16:00
 AFTERHOURS_END = dt_time(20, 0)      # 20:00
 EST = pytz.timezone('America/New_York')
@@ -77,7 +77,7 @@ class TradingEngine:
         return PREMARKET_START <= now < MARKET_OPEN
 
     def is_force_close_window(self) -> bool:
-        """收盤前 5 分鐘強制平倉視窗"""
+        """15:30 強制平倉視窗"""
         now = datetime.now(EST).time()
         return FORCE_CLOSE_TIME <= now < MARKET_CLOSE
 
@@ -511,17 +511,41 @@ class TradingEngine:
                 last_vwap = self.watchlist_last_vwap.get(symbol)
                 self.watchlist_last_vwap[symbol] = vwap  # 更新記錄
 
-                price_below_vwap = price < vwap
+                vwap_threshold = round(vwap * (1 + STRATEGY.vwap_buffer_pct), 2)
                 vwap_declining = last_vwap is not None and vwap < last_vwap
 
-                if price_below_vwap:
-                    log.info(f"{symbol}: 現價 ${price:.2f} 跌穿 VWAP ${vwap:.2f}，唔進場")
+                if price < vwap_threshold:
+                    log.info(f"{symbol}: 現價 ${price:.2f} 未超過 VWAP+{STRATEGY.vwap_buffer_pct*100:.1f}% (${vwap_threshold:.2f})，唔進場")
                     return False
                 if vwap_declining:
                     log.info(f"{symbol}: VWAP 向下 (${last_vwap:.2f}→${vwap:.2f})，唔進場")
                     return False
 
-                log.info(f"  ✔ VWAP 方向正常: 現價 ${price:.2f} > VWAP ${vwap:.2f}")
+                log.info(f"  ✔ VWAP 確認: 現價 ${price:.2f} > VWAP+{STRATEGY.vwap_buffer_pct*100:.1f}% (${vwap_threshold:.2f})")
+
+            # RSI + OBV 動能確認
+            try:
+                intraday_bars = self.ibkr.get_historical_data(contract, duration="1 D", bar_size="1 min")
+                if intraday_bars and len(intraday_bars) >= STRATEGY.rsi_period + 1:
+                    closes = [b.close for b in intraday_bars]
+                    rsi = TradingEngine._calculate_rsi(closes, STRATEGY.rsi_period)
+                    if rsi is not None:
+                        if rsi < STRATEGY.rsi_min:
+                            log.info(f"{symbol}: RSI {rsi:.1f} < {STRATEGY.rsi_min} (動能不足)，唔進場")
+                            return False
+                        if rsi > STRATEGY.rsi_max:
+                            log.info(f"{symbol}: RSI {rsi:.1f} > {STRATEGY.rsi_max} (超買)，唔進場")
+                            return False
+                        log.info(f"  ✔ RSI: {rsi:.1f} (範圍 {STRATEGY.rsi_min}-{STRATEGY.rsi_max})")
+
+                    obv_slope = TradingEngine._calculate_obv_slope(intraday_bars)
+                    if obv_slope is not None and obv_slope < 0:
+                        log.info(f"{symbol}: OBV 向下 (slope={obv_slope:.0f})，買盤衰減，唔進場")
+                        return False
+                    if obv_slope is not None:
+                        log.info(f"  ✔ OBV slope: {obv_slope:.0f} (正向)")
+            except Exception as e:
+                log.debug(f"{symbol}: RSI/OBV 計算失敗 (跳過): {e}")
 
             # 跳空強度確認：gap% 不能跌穿掃描時的一半（失血過多）
             prev_close = self.watchlist_prev_closes.get(symbol)
@@ -728,6 +752,39 @@ class TradingEngine:
 
         except Exception as e:
             log.error(f"{symbol} 離場檢查失敗: {e}")
+
+    @staticmethod
+    def _calculate_rsi(closes: list, period: int = 14) -> float | None:
+        if len(closes) < period + 1:
+            return None
+        gains, losses = [], []
+        for i in range(1, len(closes)):
+            diff = closes[i] - closes[i - 1]
+            gains.append(max(diff, 0.0))
+            losses.append(max(-diff, 0.0))
+        avg_gain = sum(gains[-period:]) / period
+        avg_loss = sum(losses[-period:]) / period
+        if avg_loss == 0:
+            return 100.0
+        rs = avg_gain / avg_loss
+        return round(100 - (100 / (1 + rs)), 2)
+
+    @staticmethod
+    def _calculate_obv_slope(bars, lookback: int = 5) -> float | None:
+        if len(bars) < lookback + 1:
+            return None
+        obv = 0.0
+        obv_series = []
+        for i in range(1, len(bars)):
+            if bars[i].close > bars[i - 1].close:
+                obv += bars[i].volume
+            elif bars[i].close < bars[i - 1].close:
+                obv -= bars[i].volume
+            obv_series.append(obv)
+        if len(obv_series) < lookback:
+            return None
+        recent = obv_series[-lookback:]
+        return recent[-1] - recent[0]
 
     def execute_entry(self, symbol: str, contract, entry_price: float, stop_price: float):
         """執行進場（只在正常交易時間進場 09:30-16:00）"""

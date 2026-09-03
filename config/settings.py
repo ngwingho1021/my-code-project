@@ -59,7 +59,12 @@ class StrategyParams:
 
     # VWAP
     require_price_above_vwap: bool = True
-    vwap_buffer_pct: float = 0.0   # 價需要高於 vwap 幾多 % 先當「穩守」
+    vwap_buffer_pct: float = 0.015  # 現價需要高於 VWAP 1.5% 先當穩守（避免剛剛摸上 VWAP 就入）
+
+    # RSI
+    rsi_period: int = 14
+    rsi_min: float = 45.0   # RSI 低於此 = 動能不足，唔入場
+    rsi_max: float = 75.0   # RSI 高於此 = 超買，唔入場
 
     # Micro pullback 定義
     pullback_lookback_bars: int = 5
