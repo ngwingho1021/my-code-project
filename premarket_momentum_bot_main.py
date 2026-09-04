@@ -29,7 +29,7 @@ log = get_logger("premarket_main")
 trade_log = get_logger("premarket_trades")
 
 SCAN_INTERVAL_SEC = 60
-MANAGE_INTERVAL_SEC = 2
+MANAGE_INTERVAL_SEC = 1
 MAX_WATCHLIST_SIZE = 10
 
 # 盤前時間常數（EDT）
@@ -430,12 +430,13 @@ class PreMarketEngine:
             if price > pos.highest_price:
                 pos.highest_price = price
 
-            # 止蝕（軟件追蹤，限價單在 bid）
+            # 止蝕（軟件追蹤，限價單在 bid-0.01 增加成交機會）
             current_stop = pos.trailing_stop if pos.trailing_stop > 0 else pos.initial_stop
             check_stop = bid if bid else price
             if check_stop <= current_stop:
-                log.info(f"🛑 盤前止蝕: {symbol} bid=${check_stop:.2f} (止蝕線 ${current_stop:.2f})")
-                self._sell(symbol, contract, pos, check_stop, "premarket_stop", pos.remaining_shares)
+                sell_price = round(check_stop - 0.01, 2)
+                log.info(f"🛑 盤前止蝕: {symbol} bid=${check_stop:.2f} (止蝕線 ${current_stop:.2f}) → 落單 ${sell_price:.2f}")
+                self._sell(symbol, contract, pos, sell_price, "premarket_stop", pos.remaining_shares)
                 return
 
             # 1R 止盈 → 賣 50%，止蝕移到打和
