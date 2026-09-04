@@ -41,8 +41,6 @@ class ScannerCriteria:
     max_spread_pct: float = 0.02          # 入場前 bid-ask spread 上限（2%），過濾流動性極低股
     require_catalyst: bool = False        # False = 冇新聞都可以進場（只係降低信心分）
     max_drop_from_high_pct: float = 0.20  # 現價距日高超過 20% = 動能已過，唔入場
-    gap_up_pct_max: float = 30.0          # gap 超過 30% 係崩潰訊號而非動能（MOVE 31%、WETO 40% 都輸大）
-    prior_5day_trend_min_pct: float = -15.0  # 過去5交易日跌幅超過 15% = 持續下跌股，今日 gap 唔可靠
     # 唔交易呢類證券（ETF/ETN、SPAC unit/warrant/rights）
     banned_symbols: tuple = ('DGZ', 'GDXD', 'GLDX', 'JDST', 'DUST', 'NUGT', 'UVXY', 'SQQQ', 'TQQQ')
     banned_suffixes: tuple = ('U', 'W', 'WS', 'R')  # SPAC unit/warrant/rights 後綴
