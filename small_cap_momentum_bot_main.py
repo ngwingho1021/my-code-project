@@ -311,6 +311,10 @@ class TradingEngine:
                 if gap_pct < SCANNER.watchlist_min_gap_pct:
                     log.info(f"⏭️ 跳過 {symbol}: gap {gap_pct:.1f}% < {SCANNER.watchlist_min_gap_pct}%（動能不足）")
                     continue
+                # Gap 上限：極端 gap 往往係崩潰前兆（MOVE 31%、WETO 40% 等）
+                if gap_pct > SCANNER.gap_up_pct_max:
+                    log.info(f"⏭️ 跳過 {symbol}: gap {gap_pct:.1f}% > {SCANNER.gap_up_pct_max}%（極端 gap 崩潰風險高）")
+                    continue
 
             # 今日成交量過濾（用 ticker 直接取，唔 fetch 歷史數據）
             today_vol = 0.0
@@ -336,6 +340,24 @@ class TradingEngine:
                 log.info(f"  ✔ Float: {float_shares/1e6:.1f}M")
             else:
                 log.info(f"  ⚠️ {symbol}: Float 數據不可用，寬鬆放行")
+
+            # 多日趨勢確認：過去5個交易日唔可以係持續大跌（WOOF、WETO 教訓）
+            try:
+                daily_bars = self.ibkr.get_historical_data(contract, duration="10 D", bar_size="1 day")
+                if daily_bars and len(daily_bars) >= 7:
+                    close_yesterday = daily_bars[-2].close   # bars[-1] 係今日未完成
+                    close_5d_ago = daily_bars[-7].close
+                    if close_5d_ago > 0:
+                        trend_pct = (close_yesterday - close_5d_ago) / close_5d_ago * 100
+                        if trend_pct < SCANNER.prior_5day_trend_min_pct:
+                            log.info(
+                                f"⏭️ 跳過 {symbol}: 過去5日趨勢 {trend_pct:.1f}% < {SCANNER.prior_5day_trend_min_pct}%"
+                                f"（持續下跌股，今日 gap 唔可靠）"
+                            )
+                            continue
+                        log.info(f"  ✔ 5日趨勢: {trend_pct:+.1f}%")
+            except Exception as e:
+                log.debug(f"{symbol}: 5日趨勢計算失敗 (跳過): {e}")
 
             self.watchlist[symbol] = contract
             if scan_price:
