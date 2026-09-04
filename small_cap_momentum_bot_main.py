@@ -540,9 +540,8 @@ class TradingEngine:
 
                     obv_slope = TradingEngine._calculate_obv_slope(intraday_bars)
                     if obv_slope is not None and obv_slope < 0:
-                        log.info(f"{symbol}: OBV 向下 (slope={obv_slope:.0f})，買盤衰減，唔進場")
-                        return False
-                    if obv_slope is not None:
+                        log.warning(f"⚠️ {symbol}: OBV 向下 (slope={obv_slope:.0f})，買盤衰減 [警告，不阻止入場]")
+                    elif obv_slope is not None:
                         log.info(f"  ✔ OBV slope: {obv_slope:.0f} (正向)")
             except Exception as e:
                 log.debug(f"{symbol}: RSI/OBV 計算失敗 (跳過): {e}")

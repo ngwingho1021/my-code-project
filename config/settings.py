@@ -59,7 +59,7 @@ class StrategyParams:
 
     # VWAP
     require_price_above_vwap: bool = True
-    vwap_buffer_pct: float = 0.015  # 現價需要高於 VWAP 1.5% 先當穩守（避免剛剛摸上 VWAP 就入）
+    vwap_buffer_pct: float = 0.005  # 現價需要高於 VWAP 0.5% 先當穩守
 
     # RSI
     rsi_period: int = 14
