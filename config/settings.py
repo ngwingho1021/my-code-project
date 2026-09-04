@@ -64,7 +64,7 @@ class StrategyParams:
     # RSI
     rsi_period: int = 14
     rsi_min: float = 45.0   # RSI 低於此 = 動能不足，唔入場
-    rsi_max: float = 85.0   # RSI 低於此 = 超買警戒（爆發股正常 70-85，唔設太緊）
+    rsi_max: float = 90.0   # RSI 低於此 = 超買警戒（爆發股正常 70-90，唔設太緊）
 
     # Micro pullback 定義
     pullback_lookback_bars: int = 5
