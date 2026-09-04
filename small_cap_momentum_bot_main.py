@@ -523,7 +523,7 @@ class TradingEngine:
 
                 log.info(f"  ✔ VWAP 確認: 現價 ${price:.2f} > VWAP+{STRATEGY.vwap_buffer_pct*100:.1f}% (${vwap_threshold:.2f})")
 
-            # RSI + OBV 動能確認
+            # RSI + OBV + 入場量能確認
             try:
                 intraday_bars = self.ibkr.get_historical_data(contract, duration="1 D", bar_size="1 min")
                 if intraday_bars and len(intraday_bars) >= STRATEGY.rsi_period + 1:
@@ -543,8 +543,20 @@ class TradingEngine:
                         log.warning(f"⚠️ {symbol}: OBV 向下 (slope={obv_slope:.0f})，買盤衰減 [警告，不阻止入場]")
                     elif obv_slope is not None:
                         log.info(f"  ✔ OBV slope: {obv_slope:.0f} (正向)")
+
+                    # 入場嗰一刻量能確認：當前 bar 量 > 前 20 bar 平均 × 1.5
+                    if len(intraday_bars) >= 22:
+                        cur_vol = intraday_bars[-1].volume or 0
+                        avg_vol = sum(b.volume or 0 for b in intraday_bars[-21:-1]) / 20
+                        if avg_vol > 0 and cur_vol < avg_vol * 1.5:
+                            log.info(
+                                f"{symbol}: 入場 bar 量 {cur_vol:,.0f} < 前20bar均量×1.5 "
+                                f"({avg_vol*1.5:,.0f})，量能唔夠強，唔進場"
+                            )
+                            return False
+                        log.info(f"  ✔ 入場量能: {cur_vol:,.0f} vs 均量×1.5 {avg_vol*1.5:,.0f}")
             except Exception as e:
-                log.debug(f"{symbol}: RSI/OBV 計算失敗 (跳過): {e}")
+                log.debug(f"{symbol}: RSI/OBV/量能 計算失敗 (跳過): {e}")
 
             # 跳空強度確認：gap% 不能跌穿掃描時的一半（失血過多）
             prev_close = self.watchlist_prev_closes.get(symbol)
