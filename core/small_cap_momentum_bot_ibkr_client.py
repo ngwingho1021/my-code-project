@@ -139,6 +139,23 @@ class IBKRClient:
             log.error(f"下市價賣單失敗: {e}")
             return None
 
+    def place_premarket_sell_order(self, contract, quantity: int, limit_price: float):
+        """盤前賣單（限價 + outsideRth）- 盤前唔支援市價單，用 bid 價落限價單"""
+        try:
+            order = LimitOrder("SELL", quantity, limit_price)
+            order.tif = "DAY"
+            order.outsideRth = True
+            trade = self.ib.placeOrder(self._smart_contract(contract), order)
+            log.info(f"下盤前賣單: {quantity} @ ${limit_price:.2f} (DAY, outsideRth)")
+            self.ib.sleep(2)
+            if trade.orderStatus.status == "Cancelled":
+                log.error(f"盤前賣單被取消: {contract.symbol}")
+                return None
+            return trade
+        except Exception as e:
+            log.error(f"下盤前賣單失敗: {e}")
+            return None
+
     def place_stop_limit_order(self, contract, quantity: int, stop_price: float, limit_price: float):
         """下止蝕單（Stop-Limit）"""
         try:
