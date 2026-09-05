@@ -33,7 +33,7 @@ trade_log = get_logger("trades")
 SCAN_INTERVAL_SEC = 60
 MANAGE_INTERVAL_SEC = 1
 MAX_WATCHLIST_SIZE = 15
-STOP_LOSS_PCT = 0.05
+STOP_LOSS_PCT = 0.04
 
 # 交易時間（EST 時區）
 PREMARKET_START = dt_time(4, 0)      # 04:00
@@ -580,7 +580,7 @@ class TradingEngine:
             if atr and atr > 0:
                 stop_distance = atr * 1.0
                 stop_distance = max(stop_distance, price * 0.02)  # 最少 2%
-                stop_distance = min(stop_distance, price * 0.08)  # 最多 8%
+                stop_distance = min(stop_distance, price * STRATEGY.max_stop_pct_from_entry)  # 最多 4%
                 stop_price = round(price - stop_distance, 2)
                 log.info(f"🎯 {symbol} @ ${price:.2f} | ATR={atr:.3f} | 止蝕距離 {stop_distance/price*100:.1f}% @ ${stop_price:.2f}")
             else:

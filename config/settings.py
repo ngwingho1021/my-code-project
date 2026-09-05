@@ -20,7 +20,7 @@ class AccountRisk:
     account_size: float = 5000.0
     max_trades_per_day: int = 12
     max_concurrent_positions: int = 4   # HARD LIMIT: 最多 4 個位（靠 IBKR 實時查詢）
-    max_loss_per_trade: float = 100.0
+    max_loss_per_trade: float = 75.0
     max_loss_per_day: float = 500.0
     max_loss_per_week: float = 800.0
     # 單一持倉最多用幾多百分比本金（避免一注獨大）
@@ -86,6 +86,9 @@ class StrategyParams:
     # 剩低 20% 用 trailing stop 跟到尾
 
     trailing_stop_pct: float = 0.5    # 尾段用 VWAP / 前低 作 trailing stop 參考百分比
+
+    # 止蝕距離上限（ATR 過大時封頂）
+    max_stop_pct_from_entry: float = 0.04   # 最多 4%，避免細價股 ATR 寬唔停得甩
 
     # 橫行離場（無方向超過 N 分鐘就退場）
     sideways_timeout_min: int = 15        # 持倉幾多分鐘後開始檢查橫行

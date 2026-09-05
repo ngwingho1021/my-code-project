@@ -42,7 +42,7 @@ EST = pytz.timezone('America/New_York')
 # 盤前專用過濾參數（與主力 bot 有別）
 PREMARKET_MIN_VOLUME  = 50_000   # 盤前成交量下限（遠低於盤中 300K）
 PREMARKET_MAX_SPREAD  = 0.05     # Spread 上限 5%（盤前較闊）
-PREMARKET_STOP_PCT    = 0.05     # 預設止蝕 5%（ATR 計算失敗時用）
+PREMARKET_STOP_PCT    = 0.04     # 預設止蝕 4%（ATR 計算失敗時用）
 
 
 class PreMarketEngine:
@@ -374,7 +374,7 @@ class PreMarketEngine:
         if atr and atr > 0:
             stop_distance = atr * 1.0
             stop_distance = max(stop_distance, price * 0.02)
-            stop_distance = min(stop_distance, price * 0.08)
+            stop_distance = min(stop_distance, price * STRATEGY.max_stop_pct_from_entry)  # 最多 4%
         else:
             stop_distance = price * PREMARKET_STOP_PCT
         stop_price = round(price - stop_distance, 2)
