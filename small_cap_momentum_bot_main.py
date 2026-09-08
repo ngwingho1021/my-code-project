@@ -58,6 +58,7 @@ class TradingEngine:
         self.watchlist_prev_closes = {}         # symbol -> previous day close
         self.watchlist_last_vwap = {}           # symbol -> last known VWAP (for direction check)
         self.tickers = {}                       # symbol -> streaming ticker
+        self.stopped_out_today = set()          # 當日止蝕過的股票，唔再重入
         self.rejected_symbols = set()           # 被 IBKR 拒絕嘅股票
         self.running = False
 
@@ -138,6 +139,7 @@ class TradingEngine:
                         self.watchlist_scan_prices.clear()
                         self.watchlist_prev_closes.clear()
                         self.watchlist_last_vwap.clear()
+                        self.stopped_out_today.clear()
                         log.info("🔄 新交易日，清空監控名單")
 
                 # 只在交易時間掃描新機會
@@ -270,6 +272,9 @@ class TradingEngine:
                     continue
 
             if symbol in self.watchlist:
+                continue
+            if symbol in self.stopped_out_today:
+                log.debug(f"⏭️ 跳過 {symbol}：當日已止蝕，唔重入")
                 continue
 
             if symbol in self.rejected_symbols:
@@ -904,6 +909,10 @@ class TradingEngine:
                 if symbol in self.watchlist:
                     del self.watchlist[symbol]
                 self.order_sm.remove_position(symbol)
+                # 止蝕離場：封鎖當日重入
+                if reason in ("stop_loss", "trailing_stop", "premarket_stop", "force_close_premarket"):
+                    self.stopped_out_today.add(symbol)
+                    log.info(f"🚫 {symbol} 當日封鎖（止蝕後唔再重入）")
                 # 退訂串流數據
                 if symbol in self.tickers:
                     self.ibkr.unsubscribe_market_data(contract)

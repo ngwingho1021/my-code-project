@@ -58,6 +58,7 @@ class PreMarketEngine:
         self.watchlist_prev_closes = {}      # symbol -> previous day close
         self.tickers = {}                    # symbol -> streaming ticker
         self.rejected_symbols = set()
+        self.stopped_out_today = set()          # 當日止蝕過的股票，唔再重入
         self.running = False
 
     # ------------------------------------------------------------------ #
@@ -189,6 +190,9 @@ class PreMarketEngine:
                     continue
 
             if symbol in self.watchlist or symbol in self.rejected_symbols:
+                continue
+            if symbol in self.stopped_out_today:
+                log.debug(f"⏭️ 跳過 {symbol}：當日已止蝕，唔重入")
                 continue
             if self.order_sm.get_position(symbol):
                 continue
@@ -584,6 +588,9 @@ class PreMarketEngine:
             self.position_mgr.current_positions.pop(symbol, None)
             self.watchlist.pop(symbol, None)
             self.order_sm.remove_position(symbol)
+            if reason in ("premarket_stop", "force_close"):
+                self.stopped_out_today.add(symbol)
+                log.info(f"🚫 {symbol} 當日封鎖（止蝕後唔再重入）")
             if symbol in self.tickers:
                 self.ibkr.unsubscribe_market_data(contract)
                 del self.tickers[symbol]
