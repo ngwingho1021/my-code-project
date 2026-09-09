@@ -40,7 +40,7 @@ class ScannerCriteria:
     min_avg_volume: float = 300_000       # 20日平均成交量下限，過濾無流動性股
     max_spread_pct: float = 0.02          # 入場前 bid-ask spread 上限（2%），過濾流動性極低股
     require_catalyst: bool = False        # False = 冇新聞都可以進場（只係降低信心分）
-    max_drop_from_high_pct: float = 0.20  # 現價距日高超過 20% = 動能已過，唔入場
+    max_drop_from_high_pct: float = 0.10  # 現價距日高超過 10% = 動能已過，唔入場
     # 唔交易呢類證券（ETF/ETN、SPAC unit/warrant/rights）
     banned_symbols: tuple = ('DGZ', 'GDXD', 'GLDX', 'JDST', 'DUST', 'NUGT', 'UVXY', 'SQQQ', 'TQQQ')
     banned_suffixes: tuple = ('U', 'W', 'WS', 'R')  # SPAC unit/warrant/rights 後綴
@@ -63,7 +63,7 @@ class StrategyParams:
 
     # RSI
     rsi_period: int = 14
-    rsi_min: float = 45.0   # RSI 低於此 = 動能不足，唔入場
+    rsi_min: float = 55.0   # RSI 低於此 = 動能不足，唔入場
     rsi_max: float = 90.0   # RSI 低於此 = 超買警戒（爆發股正常 70-90，唔設太緊）
 
     # Micro pullback 定義
