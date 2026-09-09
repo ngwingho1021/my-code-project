@@ -354,17 +354,24 @@ class TradingEngine:
         log.info(f"監控名單: {list(self.watchlist.keys())} ({len(self.watchlist)} 隻)")
 
     def force_close_all_positions(self):
-        """收盤前 5 分鐘強制市價平倉所有持倉"""
+        """15:30 強制市價平倉所有持倉"""
         active = self.order_sm.get_active_positions()
         if not active:
             return
 
-        log.warning(f"⚠️ 15:55 強制平倉 - {len(active)} 個持倉")
+        log.warning(f"⚠️ 15:30 強制平倉 - {len(active)} 個持倉")
         for pos in active:
             symbol = pos.symbol
             contract = self.watchlist.get(symbol)
+            # watchlist 冇（重啟後）→ 自己造合約
             if contract is None:
-                continue
+                try:
+                    contract = self.ibkr.qualify_contract(self.ibkr.make_stock(symbol))
+                    self.watchlist[symbol] = contract
+                    log.warning(f"🔄 強制平倉：重新 qualify {symbol}")
+                except Exception as e:
+                    log.error(f"強制平倉：無法 qualify {symbol}: {e}")
+                    continue
             if pos.remaining_shares <= 0:
                 continue
             try:
@@ -961,6 +968,10 @@ class TradingEngine:
 
             if synced:
                 log.info(f"✅ 同步完成，{synced} 個現有持倉已載入")
+                # 啟動時若已過 15:30，立即強制平倉（防止 bot crash 後重啟漏清倉）
+                if self.is_force_close_window() or datetime.now(EST).time() >= FORCE_CLOSE_TIME:
+                    log.warning("⚠️ 啟動時發現持倉且已過 15:30，立即強制平倉")
+                    self.force_close_all_positions()
             else:
                 log.info("📭 IBKR 無現有小市值持倉")
 
