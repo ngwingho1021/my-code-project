@@ -1,13 +1,13 @@
 """
 【Pre-Market Momentum Trader】盤前專用交易機械人
-交易視窗：07:00–09:20 EDT（只在盤前入場，09:25 前強制清倉）
+交易視窗：04:00–09:20 EDT（只在盤前入場，09:25 前強制清倉）
 
 與主力 bot (small_cap_momentum_bot_main.py) 共用同一 IBKR 帳戶，但：
-- 只在盤前進場（07:00–09:20）
+- 只在盤前進場（04:00–09:20）
 - 09:25 強制平倉，唔持倉過開市
 - 全部訂單使用 outsideRth=True + 限價（盤前無市價單）
 - 過濾條件較寬鬆（RSI/OBV/量能 bar 數不足，自動略過）
-- 成交量下限 50,000（盤前遠低於盤中）
+- 成交量下限 10,000（04:00-07:00 量薄，放寬過濾）
 - Bid-Ask spread 上限 5%
 """
 import sys
@@ -33,14 +33,14 @@ MANAGE_INTERVAL_SEC = 1
 MAX_WATCHLIST_SIZE = 10
 
 # 盤前時間常數（EDT）
-PREMARKET_ENTRY_START = dt_time(7, 0)    # 07:00 有量先入場（04:00-07:00 太薄）
+PREMARKET_ENTRY_START = dt_time(4, 0)    # 04:00 盤前開始（IBKR 盤前最早可交易）
 PREMARKET_ENTRY_END   = dt_time(9, 20)   # 09:20 停止新進場（留時間退出）
 PREMARKET_FORCE_CLOSE = dt_time(9, 25)   # 09:25 強制平倉，09:30 前清零
 MARKET_OPEN           = dt_time(9, 30)   # 09:30 市場開市（參考）
 EST = pytz.timezone('America/New_York')
 
 # 盤前專用過濾參數（與主力 bot 有別）
-PREMARKET_MIN_VOLUME  = 50_000   # 盤前成交量下限（遠低於盤中 300K）
+PREMARKET_MIN_VOLUME  = 10_000   # 盤前成交量下限（04:00-07:00 量更薄，放寬至 10K）
 PREMARKET_MAX_SPREAD  = 0.05     # Spread 上限 5%（盤前較闊）
 PREMARKET_STOP_PCT    = 0.04     # 預設止蝕 4%（ATR 計算失敗時用）
 
@@ -69,12 +69,12 @@ class PreMarketEngine:
         return datetime.now(EST).time()
 
     def is_entry_window(self) -> bool:
-        """07:00–09:20 可以新開倉"""
+        """04:00–09:20 可以新開倉"""
         t = self.now_est()
         return PREMARKET_ENTRY_START <= t < PREMARKET_ENTRY_END
 
     def is_premarket(self) -> bool:
-        """07:00–09:30 在盤前範圍"""
+        """04:00–09:30 在盤前範圍"""
         t = self.now_est()
         return PREMARKET_ENTRY_START <= t < MARKET_OPEN
 
@@ -84,7 +84,7 @@ class PreMarketEngine:
         return PREMARKET_FORCE_CLOSE <= t < MARKET_OPEN
 
     def is_too_early(self) -> bool:
-        """07:00 前太薄，唔掃描"""
+        """04:00 前唔掃描"""
         return self.now_est() < PREMARKET_ENTRY_START
 
     # ------------------------------------------------------------------ #
@@ -119,7 +119,7 @@ class PreMarketEngine:
                     break
 
                 if self.is_too_early():
-                    log.info(f"⏳ {now_t} 太早，等到 07:00 再掃描...")
+                    log.info(f"⏳ {now_t} 太早，等到 04:00 再掃描...")
                     time.sleep(60)
                     continue
 
