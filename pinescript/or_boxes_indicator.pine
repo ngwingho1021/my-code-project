@@ -1,0 +1,148 @@
+//@version=6
+// =============================================================================
+// Opening Range Boxes (5-minute & 15-minute)
+// -----------------------------------------------------------------------------
+// Every day, automatically marks:
+//   - the 5-minute box : high / low of 09:30 - 09:35 (New York)
+//   - the 15-minute box: high / low of 09:30 - 09:45 (New York)
+// Each box is drawn while it is forming and then extended to the time you choose
+// (default 11:00 = the first 90 minutes). Optional midline and price labels.
+// Alerts: "5m box break up / down" and "15m box break up / down" (candle CLOSE
+// outside the box after it has formed).
+//
+// Use on a 1-minute or 5-minute chart (the 15-minute box also works on 15m).
+// =============================================================================
+indicator("Opening Range Boxes (5m & 15m)", shorttitle = "OR Boxes", overlay = true,
+     max_boxes_count = 500, max_lines_count = 500, max_labels_count = 500)
+
+// ----------------------------------------------------------------------------- inputs
+grpS   = "Session"
+tz     = input.string("America/New_York", "Timezone", group = grpS)
+sessH  = input.int(9,  "Open  hour",   0, 23, inline = "o", group = grpS)
+sessM  = input.int(30, "minute",       0, 59, inline = "o", group = grpS)
+endH   = input.int(11, "Extend box until hour", 0, 23, inline = "e", group = grpS,
+     tooltip = "11:00 = first 90 minutes (One Box Scalper). Use 16:00 to extend to the close.")
+endM   = input.int(0,  "minute",       0, 59, inline = "e", group = grpS)
+days   = input.int(20, "Show last N days", 1, 250, group = grpS)
+
+grp5   = "5-minute box"
+show5  = input.bool(true, "Show", group = grp5)
+col5   = input.color(color.teal, "Color", group = grp5)
+
+grp15  = "15-minute box"
+show15 = input.bool(true, "Show", group = grp15)
+col15  = input.color(color.orange, "Color", group = grp15)
+
+grpV      = "Display"
+fillTransp = input.int(88, "Box fill transparency", 0, 100, group = grpV)
+showMid   = input.bool(true, "Show midline", group = grpV)
+showLbl   = input.bool(true, "Show price labels", group = grpV)
+showTbl   = input.bool(true, "Show today's levels table", group = grpV)
+
+// ----------------------------------------------------------------------------- box object
+type OrBox
+    int   mins
+    color col
+    float hi
+    float lo
+    bool  done = false
+    box   bx
+    line  mid
+    label lbH
+    label lbL
+
+method reset(OrBox o) =>
+    o.hi   := na
+    o.lo   := na
+    o.done := false
+    o.bx   := box(na)
+    o.mid  := line(na)
+    o.lbH  := label(na)
+    o.lbL  := label(na)
+
+method draw(OrBox o, int sessStart, int endT) =>
+    string tag = str.tostring(o.mins) + "m "
+    if na(o.bx)
+        o.bx := box.new(sessStart, o.hi, endT, o.lo, xloc = xloc.bar_time, border_color = o.col,
+             border_width = 2, bgcolor = color.new(o.col, fillTransp))
+        if showMid
+            o.mid := line.new(sessStart, (o.hi + o.lo) / 2, endT, (o.hi + o.lo) / 2, xloc = xloc.bar_time,
+                 color = color.new(o.col, 30), style = line.style_dashed)
+        if showLbl
+            o.lbH := label.new(endT, o.hi, "", xloc = xloc.bar_time, style = label.style_label_left,
+                 color = color.new(o.col, 20), textcolor = color.white, size = size.small)
+            o.lbL := label.new(endT, o.lo, "", xloc = xloc.bar_time, style = label.style_label_left,
+                 color = color.new(o.col, 20), textcolor = color.white, size = size.small)
+    box.set_top(o.bx, o.hi)
+    box.set_bottom(o.bx, o.lo)
+    if not na(o.mid)
+        line.set_y1(o.mid, (o.hi + o.lo) / 2)
+        line.set_y2(o.mid, (o.hi + o.lo) / 2)
+    if not na(o.lbH)
+        label.set_y(o.lbH, o.hi)
+        label.set_text(o.lbH, tag + "H " + str.tostring(o.hi, format.mintick))
+        label.set_y(o.lbL, o.lo)
+        label.set_text(o.lbL, tag + "L " + str.tostring(o.lo, format.mintick))
+
+method update(OrBox o, bool newDay, int sessStart, int endT, bool recent, bool enabled) =>
+    int orEnd = sessStart + o.mins * 60000
+    if newDay
+        o.reset()
+    if time >= sessStart and time < orEnd                 // box is forming
+        o.hi := na(o.hi) ? high : math.max(o.hi, high)
+        o.lo := na(o.lo) ? low  : math.min(o.lo, low)
+        if enabled and recent
+            o.draw(sessStart, endT)
+    else if time >= orEnd and not na(o.hi)
+        o.done := true
+
+// ----------------------------------------------------------------------------- run
+int  y         = year(time, tz)
+int  mo        = month(time, tz)
+int  d         = dayofmonth(time, tz)
+int  sessStart = timestamp(tz, y, mo, d, sessH, sessM)
+int  endT      = timestamp(tz, y, mo, d, endH, endM)
+bool newDay    = bar_index == 0 or d != dayofmonth(time[1], tz)
+bool recent    = time >= timenow - days * 86400000
+
+var OrBox b5  = OrBox.new(5,  col5)
+var OrBox b15 = OrBox.new(15, col15)
+b5.update(newDay,  sessStart, endT, recent, show5)
+b15.update(newDay, sessStart, endT, recent, show15)
+
+// values in the Data Window (no lines on the chart)
+plot(b5.done  ? b5.hi  : na, "5m box high",  display = display.data_window)
+plot(b5.done  ? b5.lo  : na, "5m box low",   display = display.data_window)
+plot(b15.done ? b15.hi : na, "15m box high", display = display.data_window)
+plot(b15.done ? b15.lo : na, "15m box low",  display = display.data_window)
+
+// ----------------------------------------------------------------------------- alerts (candle close outside the box)
+bool inWin  = time < endT
+bool up5    = b5.done  and inWin and close > b5.hi  and close[1] <= b5.hi
+bool dn5    = b5.done  and inWin and close < b5.lo  and close[1] >= b5.lo
+bool up15   = b15.done and inWin and close > b15.hi and close[1] <= b15.hi
+bool dn15   = b15.done and inWin and close < b15.lo and close[1] >= b15.lo
+alertcondition(up5,  "5m box break UP",    "{{ticker}} closed above the 5-minute box high")
+alertcondition(dn5,  "5m box break DOWN",  "{{ticker}} closed below the 5-minute box low")
+alertcondition(up15, "15m box break UP",   "{{ticker}} closed above the 15-minute box high")
+alertcondition(dn15, "15m box break DOWN", "{{ticker}} closed below the 15-minute box low")
+
+// ----------------------------------------------------------------------------- today's levels table
+var table tbl = table.new(position.bottom_right, 4, 3, bgcolor = color.new(color.black, 15),
+     border_color = color.gray, border_width = 1)
+
+cellTxt(float v) => na(v) ? "-" : str.tostring(v, format.mintick)
+
+if showTbl and barstate.islast
+    table.cell(tbl, 0, 0, "Box",   text_color = color.white, text_size = size.small)
+    table.cell(tbl, 1, 0, "High",  text_color = color.white, text_size = size.small)
+    table.cell(tbl, 2, 0, "Low",   text_color = color.white, text_size = size.small)
+    table.cell(tbl, 3, 0, "Size",  text_color = color.white, text_size = size.small)
+    table.cell(tbl, 0, 1, "5m" + (b5.done ? "" : " (forming)"),   text_color = col5,  text_size = size.small)
+    table.cell(tbl, 1, 1, cellTxt(b5.hi),           text_color = color.white, text_size = size.small)
+    table.cell(tbl, 2, 1, cellTxt(b5.lo),           text_color = color.white, text_size = size.small)
+    table.cell(tbl, 3, 1, cellTxt(b5.hi - b5.lo),   text_color = color.white, text_size = size.small)
+    table.cell(tbl, 0, 2, "15m" + (b15.done ? "" : " (forming)"), text_color = col15, text_size = size.small)
+    table.cell(tbl, 1, 2, cellTxt(b15.hi),          text_color = color.white, text_size = size.small)
+    table.cell(tbl, 2, 2, cellTxt(b15.lo),          text_color = color.white, text_size = size.small)
+    table.cell(tbl, 3, 2, cellTxt(b15.hi - b15.lo), text_color = color.white, text_size = size.small)

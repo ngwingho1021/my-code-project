@@ -27,3 +27,9 @@ For the full Strategy Tester report on each one, change *Box to TRADE* between 5
 
 The table measures results in R (multiples of the planned risk), with no commission or slippage.
 TradingView only keeps a limited amount of 1-minute history, depending on your plan.
+
+## Indicator: `or_boxes_indicator.pine`
+Each day it automatically marks the **5-minute box** (09:30–09:35) and the **15-minute box** (09:30–09:45).
+Each box is shown while it forms, then extended to 11:00 (you can change the end time).
+It also adds a midline, price labels, a table with today's levels, and alerts when a candle closes outside either box.
+Use it on a 1-minute or 5-minute chart.
