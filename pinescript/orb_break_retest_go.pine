@@ -1,55 +1,63 @@
 //@version=6
 // =============================================================================
-// Opening Range  Break -> Retest -> Go   (5-minute vs 15-minute opening range)
+// "One Box Scalper"  -  first-candle box, break -> retest -> reversal candle
+// Reference: Scarface Trades, "My Simple 5 Minute 'First Candle' Scalping Strategy"
 // -----------------------------------------------------------------------------
-// 1. Mark the high / low of the first N minutes of the session (N = 5 or 15).
-// 2. LONG : a bar CLOSES above the OR high (breakout)
-//           -> price pulls back into the OR high (retest)
-//           -> a bar CLOSES above the retest candle's high (break again / go)
-//           -> enter long on the next bar's open.
-//    SHORT: mirror image below the OR low.
-// 3. Stop  : below the retest swing (configurable), target = R multiple.
-//    Every open trade is closed before the session ends.
+// 1. BOX   : high / low of the first 5-minute candle after the 09:30 NY open
+//            (the 15-minute box is simulated as well, for comparison).
+// 2. BREAK : on the 1-minute chart, wait for a candle to CLOSE outside the box.
+//            No trades while price is inside the box.
+// 3. RETEST: price comes back to the box edge and prints a reversal candle
+//            LONG : hammer (long lower wick) or bullish engulfing
+//            SHORT: shooting star / inverted hammer (long upper wick) or bearish engulfing
+//            The confirmation candle must close back outside the box.
+//            Enter on the next candle's open.
+// 4. RISK  : stop beyond the signal candle (or the retest swing), target = 2R.
+//            Setup is cancelled if price pushes through to the opposite side of the box.
+//            Only trade the first 90 minutes of the session.
 //
-// The strategy trades ONE opening range (chosen in the inputs) so the Strategy
-// Tester shows that one, but it also runs an identical shadow simulation for
-// BOTH the 5-minute and 15-minute ranges and prints them side by side in a
-// table on the chart, so you can see which one has the higher win rate in a
-// single run.
+// The Strategy Tester trades ONE box (5 or 15 min, chosen in the inputs). The
+// on-chart table runs an identical simulation of BOTH boxes side by side so you
+// can compare win rates in a single run.
 //
-// Use it on a 1-minute or 5-minute chart (chart timeframe must be <= 5 min).
+// Use it on a 1-minute chart (that is how the strategy is executed).
 // =============================================================================
-strategy("ORB Break-Retest-Go (5m vs 15m)", shorttitle = "ORB Retest", overlay = true,
+strategy("One Box Scalper (5m vs 15m box)", shorttitle = "One Box", overlay = true,
      initial_capital = 100000, default_qty_type = strategy.percent_of_equity, default_qty_value = 10,
      commission_type = strategy.commission.percent, commission_value = 0, slippage = 0,
-     pyramiding = 0, max_labels_count = 500)
+     pyramiding = 0)
 
 // ----------------------------------------------------------------------------- inputs
-grpOR   = "Opening range / session"
-orPick  = input.string("5", "Opening range to TRADE (minutes)", options = ["5", "15"], group = grpOR,
-     tooltip = "The Strategy Tester trades this one. The on-chart table always shows both.")
+grpOR   = "Box / session"
+orPick  = input.string("5", "Box to TRADE (first N minutes)", options = ["5", "15"], group = grpOR,
+     tooltip = "The Strategy Tester trades this box. The on-chart table always shows both.")
 tz      = input.string("America/New_York", "Session timezone", group = grpOR)
 sessH   = input.int(9,  "Session open  hour",   0, 23, inline = "o", group = grpOR)
 sessM   = input.int(30, "minute",               0, 59, inline = "o", group = grpOR)
-cutH    = input.int(12, "No new entries after hour", 0, 23, inline = "c", group = grpOR)
+cutH    = input.int(11, "No new entries after hour", 0, 23, inline = "c", group = grpOR,
+     tooltip = "Video: only trade the first 90 minutes (09:30 - 11:00).")
 cutM    = input.int(0,  "minute",               0, 59, inline = "c", group = grpOR)
-flatH   = input.int(15, "Close all trades at hour",  0, 23, inline = "f", group = grpOR)
+flatH   = input.int(15, "Close any open trade at hour", 0, 23, inline = "f", group = grpOR)
 flatM   = input.int(55, "minute",               0, 59, inline = "f", group = grpOR)
 
-grpRule      = "Break / retest / go rules"
+grpRule      = "Break / retest rules"
 dirMode      = input.string("Both", "Direction", options = ["Both", "Long only", "Short only"], group = grpRule)
-breakBufPct  = input.float(0.0,  "Breakout must close beyond level by (% of OR range)", minval = 0, step = 5, group = grpRule)
-retestTolPct = input.float(15.0, "Retest zone: within (% of OR range) of the level",   minval = 0, step = 5, group = grpRule,
-     tooltip = "A long retest = a bar whose LOW comes back to OR high + this distance (or lower).")
-failPct      = input.float(25.0, "Setup fails if price closes back inside by (% of OR range)", minval = 0, step = 5, group = grpRule)
-trigMode     = input.string("Retest candle high/low", "Entry trigger (break again)",
-     options = ["Retest candle high/low", "Breakout extreme"], group = grpRule,
-     tooltip = "Retest candle: close above the high of the latest retest bar (long).\nBreakout extreme: close above the highest high made after the first breakout (long).")
+breakBufPct  = input.float(0.0,  "Breakout close must be beyond box by (% of box)", minval = 0, step = 5, group = grpRule)
+retestTolPct = input.float(10.0, "Retest zone: within (% of box) of the edge", minval = 0, step = 5, group = grpRule,
+     tooltip = "A long retest = a candle whose LOW comes back to box high + this distance (or lower).")
+failPct      = input.float(100.0, "Cancel setup if a candle closes back inside by (% of box)", minval = 0, step = 25, group = grpRule,
+     tooltip = "100 = price closed through to the OPPOSITE side of the box (video rule).\n50 = closed past the middle of the box.")
+useHammer    = input.bool(true, "Hammer / shooting star", inline = "p", group = grpRule)
+useEngulf    = input.bool(true, "Engulfing",              inline = "p", group = grpRule)
+wickMult     = input.float(2.0, "Hammer wick must be >= x times the body", minval = 0.5, step = 0.5, group = grpRule)
+wickPctMin   = input.float(50.0, "Hammer wick must be >= % of candle range", minval = 0, maxval = 100, step = 5, group = grpRule)
 maxTrades    = input.int(1, "Max trades per day", 1, 10, group = grpRule)
 
 grpRisk    = "Stop / target"
-stopMode   = input.string("Retest swing", "Stop placement", options = ["Retest swing", "OR midpoint", "Opposite side of OR"], group = grpRisk)
-stopBufPct = input.float(5.0, "Stop buffer (% of OR range)", minval = 0, step = 1, group = grpRisk)
+stopMode   = input.string("Signal candle", "Stop placement",
+     options = ["Signal candle", "Retest swing", "Box midpoint", "Opposite side of box"], group = grpRisk,
+     tooltip = "Signal candle: beyond the hammer / engulfing pattern.\nRetest swing: beyond the lowest low (long) / highest high (short) since the breakout.")
+stopTicks  = input.int(1, "Stop buffer (ticks)", minval = 0, group = grpRisk)
 rr         = input.float(2.0, "Target (reward : risk)", minval = 0.25, step = 0.25, group = grpRisk)
 
 grpDate = "Backtest window"
@@ -59,29 +67,39 @@ endT    = input.time(timestamp("2099-12-31T00:00:00"), "End",   group = grpDate)
 
 grpVis    = "Display"
 showTable = input.bool(true, "Show 5m vs 15m comparison table", group = grpVis)
-show5     = input.bool(true, "Plot 5-minute range",  group = grpVis)
-show15    = input.bool(true, "Plot 15-minute range", group = grpVis)
+show5     = input.bool(true, "Plot 5-minute box",  group = grpVis)
+show15    = input.bool(true, "Plot 15-minute box", group = grpVis)
 
-bool allowLong  = dirMode != "Short only"
-bool allowShort = dirMode != "Long only"
+bool  allowLong  = dirMode != "Short only"
+bool  allowShort = dirMode != "Long only"
+float stopBuf    = stopTicks * syminfo.mintick
+
+// ----------------------------------------------------------------------------- candle patterns (current bar)
+float body      = math.abs(close - open)
+float barRange  = high - low
+float upperWick = high - math.max(open, close)
+float lowerWick = math.min(open, close) - low
+
+bool hammer       = barRange > 0 and lowerWick >= wickMult * body and lowerWick >= barRange * wickPctMin / 100 and upperWick < lowerWick
+bool shootingStar = barRange > 0 and upperWick >= wickMult * body and upperWick >= barRange * wickPctMin / 100 and lowerWick < upperWick
+bool bullEngulf   = close > open and close[1] < open[1] and close >= open[1] and open <= close[1]
+bool bearEngulf   = close < open and close[1] > open[1] and close <= open[1] and open >= close[1]
 
 // ----------------------------------------------------------------------------- simulation object
-// One instance per opening-range length. Signals are generated on bar close and
-// filled at the next bar's open, exactly like a strategy.entry() market order.
+// One instance per box length. Signals are generated on bar close and filled at
+// the next bar's open, exactly like a strategy.entry() market order.
 type Sim
     int   orMin
     float orHi
     float orLo
     bool  orReady  = false
-    // 0 = waiting for breakout, 1 = broke out, 2 = retested (waiting for go)
+    // 0 = waiting for a breakout close, 1 = broke out, waiting for retest + reversal candle
     int   lState   = 0
     int   sState   = 0
-    float lBreakExt
-    float sBreakExt
-    float lRetHi
-    float lRetLo
-    float sRetHi
-    float sRetLo
+    int   lBreakBar
+    int   sBreakBar
+    float lSwing            // lowest low since the long breakout
+    float sSwing            // highest high since the short breakout
     int   tradesToday = 0
     // open position
     int   pos      = 0
@@ -119,13 +137,13 @@ method closeTrade(Sim s, float px) =>
 method queue(Sim s, int dir, float stopPx) =>
     float riskP = dir == 1 ? close - stopPx : stopPx - close
     if riskP > 0
-        s.sigDir     := dir
-        s.sigStop    := stopPx
-        s.sigTarget  := close + dir * rr * riskP
-        s.pendDir    := dir
-        s.pendStop   := stopPx
-        s.pendTarget := s.sigTarget
-        s.pendRisk   := riskP
+        s.sigDir      := dir
+        s.sigStop     := stopPx
+        s.sigTarget   := close + dir * rr * riskP
+        s.pendDir     := dir
+        s.pendStop    := stopPx
+        s.pendTarget  := s.sigTarget
+        s.pendRisk    := riskP
         s.tradesToday := s.tradesToday + 1
     s.lState := 0
     s.sState := 0
@@ -178,74 +196,61 @@ method step(Sim s, bool newDay, int sessStart, int cutoffT, int flatT, bool inWi
         else if time_close >= flatT
             s.closeTrade(close)
 
-    // 3) build the opening range
+    // 3) build the box
     if time >= sessStart and time < orEnd
         s.orHi := na(s.orHi) ? high : math.max(s.orHi, high)
         s.orLo := na(s.orLo) ? low  : math.min(s.orLo, low)
     else if time >= orEnd and not na(s.orHi)
         s.orReady := true
 
-    // 4) break -> retest -> go state machine
+    // 4) break -> retest -> reversal candle
     if s.orReady and s.pos == 0 and s.pendDir == 0 and s.tradesToday < maxTrades and time_close <= cutoffT and inWindow
         float rng  = s.orHi - s.orLo
         float tol  = rng * retestTolPct / 100
         float fail = rng * failPct      / 100
         float brk  = rng * breakBufPct  / 100
-        float sBuf = rng * stopBufPct   / 100
 
         // ---- long side
         if allowLong
             if s.lState == 0
-                if close > s.orHi + brk
+                if close > s.orHi + brk                           // candle closes above the box
                     s.lState    := 1
-                    s.lBreakExt := high
-            else if close < s.orHi - fail
-                s.lState := 0                                   // failed breakout, back inside
-            else if s.lState == 1
-                if low <= s.orHi + tol                          // pulled back to the level
-                    s.lState := 2
-                    s.lRetHi := high
-                    s.lRetLo := low
-                else
-                    s.lBreakExt := math.max(s.lBreakExt, high)
-            else                                                // lState == 2
-                float trig = trigMode == "Breakout extreme" ? s.lBreakExt : s.lRetHi
-                if close > trig
-                    float swingLo = math.min(s.lRetLo, low)
-                    float stopPx  = stopMode == "Retest swing" ? swingLo - sBuf :
-                                     stopMode == "OR midpoint"  ? (s.orHi + s.orLo) / 2 : s.orLo - sBuf
-                    s.queue(1, stopPx)
-                else
-                    if low <= s.orHi + tol                      // another retest candle
-                        s.lRetHi := high
-                    s.lRetLo := math.min(s.lRetLo, low)
+                    s.lBreakBar := bar_index
+                    s.lSwing    := low
+            else
+                s.lSwing := math.min(s.lSwing, low)
+                if close < s.orHi - fail                          // pushed through the box: cancel
+                    s.lState := 0
+                else if bar_index > s.lBreakBar and close > s.orHi
+                    bool hamSig = useHammer and hammer and low <= s.orHi + tol
+                    bool engSig = useEngulf and bullEngulf and bar_index - 1 > s.lBreakBar and math.min(low, low[1]) <= s.orHi + tol
+                    if hamSig or engSig
+                        float sigLow = engSig and not hamSig ? math.min(low, low[1]) : low
+                        float stopPx = stopMode == "Signal candle" ? sigLow - stopBuf :
+                                       stopMode == "Retest swing"  ? s.lSwing - stopBuf :
+                                       stopMode == "Box midpoint"  ? (s.orHi + s.orLo) / 2 : s.orLo - stopBuf
+                        s.queue(1, stopPx)
 
         // ---- short side
         if allowShort and s.pendDir == 0
             if s.sState == 0
-                if close < s.orLo - brk
+                if close < s.orLo - brk                           // candle closes below the box
                     s.sState    := 1
-                    s.sBreakExt := low
-            else if close > s.orLo + fail
-                s.sState := 0
-            else if s.sState == 1
-                if high >= s.orLo - tol
-                    s.sState := 2
-                    s.sRetHi := high
-                    s.sRetLo := low
-                else
-                    s.sBreakExt := math.min(s.sBreakExt, low)
+                    s.sBreakBar := bar_index
+                    s.sSwing    := high
             else
-                float trig = trigMode == "Breakout extreme" ? s.sBreakExt : s.sRetLo
-                if close < trig
-                    float swingHi = math.max(s.sRetHi, high)
-                    float stopPx  = stopMode == "Retest swing" ? swingHi + sBuf :
-                                     stopMode == "OR midpoint"  ? (s.orHi + s.orLo) / 2 : s.orHi + sBuf
-                    s.queue(-1, stopPx)
-                else
-                    if high >= s.orLo - tol
-                        s.sRetLo := low
-                    s.sRetHi := math.max(s.sRetHi, high)
+                s.sSwing := math.max(s.sSwing, high)
+                if close > s.orLo + fail
+                    s.sState := 0
+                else if bar_index > s.sBreakBar and close < s.orLo
+                    bool starSig = useHammer and shootingStar and high >= s.orLo - tol
+                    bool engSig  = useEngulf and bearEngulf and bar_index - 1 > s.sBreakBar and math.max(high, high[1]) >= s.orLo - tol
+                    if starSig or engSig
+                        float sigHigh = engSig and not starSig ? math.max(high, high[1]) : high
+                        float stopPx  = stopMode == "Signal candle" ? sigHigh + stopBuf :
+                                         stopMode == "Retest swing"  ? s.sSwing + stopBuf :
+                                         stopMode == "Box midpoint"  ? (s.orHi + s.orLo) / 2 : s.orHi + stopBuf
+                        s.queue(-1, stopPx)
 
 // ----------------------------------------------------------------------------- run
 int  y   = year(time, tz)
@@ -275,10 +280,10 @@ if strategy.position_size != 0 and time_close >= flatT
     strategy.close_all(comment = "EOD", immediately = true)
 
 // ----------------------------------------------------------------------------- plots
-plot(show5  and sim5.orReady  ? sim5.orHi  : na, "5m OR high",  color.new(color.teal, 0),   2, plot.style_linebr)
-plot(show5  and sim5.orReady  ? sim5.orLo  : na, "5m OR low",   color.new(color.teal, 0),   2, plot.style_linebr)
-plot(show15 and sim15.orReady ? sim15.orHi : na, "15m OR high", color.new(color.orange, 0), 2, plot.style_linebr)
-plot(show15 and sim15.orReady ? sim15.orLo : na, "15m OR low",  color.new(color.orange, 0), 2, plot.style_linebr)
+plot(show5  and sim5.orReady  ? sim5.orHi  : na, "5m box high",  color.new(color.teal, 0),   2, plot.style_linebr)
+plot(show5  and sim5.orReady  ? sim5.orLo  : na, "5m box low",   color.new(color.teal, 0),   2, plot.style_linebr)
+plot(show15 and sim15.orReady ? sim15.orHi : na, "15m box high", color.new(color.orange, 0), 2, plot.style_linebr)
+plot(show15 and sim15.orReady ? sim15.orLo : na, "15m box low",  color.new(color.orange, 0), 2, plot.style_linebr)
 plot(active.pos != 0 ? active.stop   : na, "Stop",   color.new(color.red, 0),   1, plot.style_linebr)
 plot(active.pos != 0 ? active.target : na, "Target", color.new(color.green, 0), 1, plot.style_linebr)
 plotshape(active.sigDir == 1,  "Long signal",  shape.triangleup,   location.belowbar, color.green, size = size.small)
@@ -309,7 +314,7 @@ row(int r, string label, string a, string b) =>
 if showTable and barstate.islast
     float wr5  = winRate(sim5)
     float wr15 = winRate(sim15)
-    row(0, "Metric", "5-min OR", "15-min OR")
+    row(0, "Metric", "5-min box", "15-min box")
     row(1, "Trades",        str.tostring(sim5.wins + sim5.losses), str.tostring(sim15.wins + sim15.losses))
     row(2, "Wins / Losses", str.tostring(sim5.wins) + " / " + str.tostring(sim5.losses),
                              str.tostring(sim15.wins) + " / " + str.tostring(sim15.losses))
@@ -317,9 +322,9 @@ if showTable and barstate.islast
     row(4, "Avg R / trade", fmt(avgR(sim5), "#.00"),      fmt(avgR(sim15), "#.00"))
     row(5, "Total R",       fmt(sim5.sumR, "#.0"),        fmt(sim15.sumR, "#.0"))
     row(6, "Profit factor", fmt(profitFactor(sim5), "#.00"), fmt(profitFactor(sim15), "#.00"))
-    string verdict = na(wr5) or na(wr15) ? "not enough trades" : wr5 > wr15 ? "5-min OR" : wr15 > wr5 ? "15-min OR" : "tie"
+    string verdict = na(wr5) or na(wr15) ? "not enough trades" : wr5 > wr15 ? "5-min box" : wr15 > wr5 ? "15-min box" : "tie"
     row(7, "Higher win rate", verdict, "")
-    row(8, "Strategy Tester trades", orPick + "-min OR", "")
-    string tfNote = timeframe.in_seconds() > 300 ? "WARNING: use a 1m or 5m chart" : "Chart TF OK (" + timeframe.period + ")"
+    row(8, "Strategy Tester trades", orPick + "-min box", "")
+    string tfNote = timeframe.in_seconds() > 60 ? "NOTE: video uses a 1-minute chart" : "Chart TF OK (1m)"
     row(9, tfNote, "", "")
     table.cell_set_bgcolor(tbl, 1, 7, color.new(color.green, 40))
