@@ -13,7 +13,9 @@ from Scarface Trades' video *My Simple 5 Minute "First Candle" Scalping Strategy
    - Short: a shooting star / inverted hammer (long upper wick) or a bearish engulfing candle
 
    The trade is entered at the next candle's open.
-4. **Stop:** just beyond the signal candle (you can also choose the retest swing, the middle of the box, or the other side of the box).
+4. **Exit (default, SPX options):** stop -15% / take profit +30% of the option premium, converted to SPX points with delta
+   (SPX points = premium × % ÷ delta; with $20 premium and 0.50 delta: stop 6 pts, target 12 pts).
+   **Exit (chart mode):** stop just beyond the signal candle (you can also choose the retest swing, the middle of the box, or the other side of the box).
    **Target:** 2R.
 5. **Cancelled:** if price closes through to the other side of the box before a confirmation candle appears.
 6. Only trades the first 90 minutes (no new entries after 11:00). Max 1 trade per day by default.

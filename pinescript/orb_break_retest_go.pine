@@ -12,7 +12,9 @@
 //            SHORT: shooting star / inverted hammer (long upper wick) or bearish engulfing
 //            The confirmation candle must close back outside the box.
 //            Enter on the next candle's open.
-// 4. RISK  : stop beyond the signal candle (or the retest swing), target = 2R.
+// 4. RISK  : SPX options mode (default): stop -15% / target +30% of the option premium,
+//            converted to SPX points with delta (option move ~= delta x SPX move).
+//            Chart mode: stop beyond the signal candle (or the retest swing), target = 2R.
 //            Setup is cancelled if price pushes through to the opposite side of the box.
 //            Only trade the first 90 minutes of the session.
 //
@@ -53,7 +55,16 @@ wickMult     = input.float(2.0, "Hammer wick must be >= x times the body", minva
 wickPctMin   = input.float(50.0, "Hammer wick must be >= % of candle range", minval = 0, maxval = 100, step = 5, group = grpRule)
 maxTrades    = input.int(1, "Max trades per day", 1, 10, group = grpRule)
 
-grpRisk    = "Stop / target"
+grpOpt   = "Exit rules (SPX options)"
+exitMode = input.string("Option % (delta approx)", "Exit rules", options = ["Option % (delta approx)", "Chart stop (R)"], group = grpOpt,
+     tooltip = "Option %: stop / target are a % of the option premium, converted to SPX points with the delta below.\nChart stop (R): use the chart-based stop and R target in the next section.")
+optPrem  = input.float(20.0, "Option premium at entry ($)", minval = 0.05, step = 1, group = grpOpt,
+     tooltip = "Typical price of the contract you buy (e.g. 0DTE ATM SPX call/put around 09:40).")
+optDelta = input.float(0.50, "Option delta", minval = 0.05, maxval = 1, step = 0.05, group = grpOpt)
+optSL    = input.float(15.0, "Stop loss (% of premium)",   minval = 1, step = 1, group = grpOpt)
+optTP    = input.float(30.0, "Take profit (% of premium)", minval = 1, step = 1, group = grpOpt)
+
+grpRisk    = "Stop / target (Chart stop mode)"
 stopMode   = input.string("Signal candle", "Stop placement",
      options = ["Signal candle", "Retest swing", "Box midpoint", "Opposite side of box"], group = grpRisk,
      tooltip = "Signal candle: beyond the hammer / engulfing pattern.\nRetest swing: beyond the lowest low (long) / highest high (short) since the breakout.")
@@ -69,6 +80,11 @@ grpVis    = "Display"
 showTable = input.bool(true, "Show 5m vs 15m comparison table", group = grpVis)
 show5     = input.bool(true, "Plot 5-minute box",  group = grpVis)
 show15    = input.bool(true, "Plot 15-minute box", group = grpVis)
+
+bool  optMode    = exitMode == "Option % (delta approx)"
+// option P&L ~= delta x SPX move  ->  SPX points needed for the stop / target
+float slPts      = optPrem * optSL / 100 / optDelta
+float tpPts      = optPrem * optTP / 100 / optDelta
 
 bool  allowLong  = dirMode != "Short only"
 bool  allowShort = dirMode != "Long only"
@@ -134,12 +150,13 @@ method closeTrade(Sim s, float px) =>
         s.lossR  := s.lossR - r
     s.pos := 0
 
-method queue(Sim s, int dir, float stopPx) =>
-    float riskP = dir == 1 ? close - stopPx : stopPx - close
+method queue(Sim s, int dir, float chartStop) =>
+    float stopPx = optMode ? close - dir * slPts : chartStop
+    float riskP  = dir == 1 ? close - stopPx : stopPx - close
     if riskP > 0
         s.sigDir      := dir
         s.sigStop     := stopPx
-        s.sigTarget   := close + dir * rr * riskP
+        s.sigTarget   := optMode ? close + dir * tpPts : close + dir * rr * riskP
         s.pendDir     := dir
         s.pendStop    := stopPx
         s.pendTarget  := s.sigTarget
@@ -170,6 +187,10 @@ method step(Sim s, bool newDay, int sessStart, int cutoffT, int flatT, bool inWi
         s.stop    := s.pendStop
         s.target  := s.pendTarget
         s.risk    := s.pendRisk
+        if optMode                  // option stop / target are measured from the fill price
+            s.stop   := open - s.pendDir * slPts
+            s.target := open + s.pendDir * tpPts
+            s.risk   := slPts
         s.pendDir := 0
 
     // 2) manage the open trade (same intrabar path TradingView's broker emulator assumes:
@@ -271,10 +292,16 @@ Sim active = orPick == "5" ? sim5 : sim15
 
 if active.sigDir == 1
     strategy.entry("Long", strategy.long)
-    strategy.exit("Long exit", "Long", stop = active.sigStop, limit = active.sigTarget)
+    if optMode
+        strategy.exit("Long exit", "Long", loss = slPts / syminfo.mintick, profit = tpPts / syminfo.mintick)
+    else
+        strategy.exit("Long exit", "Long", stop = active.sigStop, limit = active.sigTarget)
 else if active.sigDir == -1
     strategy.entry("Short", strategy.short)
-    strategy.exit("Short exit", "Short", stop = active.sigStop, limit = active.sigTarget)
+    if optMode
+        strategy.exit("Short exit", "Short", loss = slPts / syminfo.mintick, profit = tpPts / syminfo.mintick)
+    else
+        strategy.exit("Short exit", "Short", stop = active.sigStop, limit = active.sigTarget)
 
 if strategy.position_size != 0 and time_close >= flatT
     strategy.close_all(comment = "EOD", immediately = true)
@@ -303,7 +330,7 @@ avgR(Sim s) =>
 profitFactor(Sim s) =>
     s.lossR > 0 ? s.winR / s.lossR : na
 
-var table tbl = table.new(position.top_right, 3, 10, bgcolor = color.new(color.black, 15),
+var table tbl = table.new(position.top_right, 3, 14, bgcolor = color.new(color.black, 15),
      border_color = color.gray, border_width = 1, frame_color = color.gray, frame_width = 1)
 
 row(int r, string label, string a, string b) =>
@@ -322,9 +349,18 @@ if showTable and barstate.islast
     row(4, "Avg R / trade", fmt(avgR(sim5), "#.00"),      fmt(avgR(sim15), "#.00"))
     row(5, "Total R",       fmt(sim5.sumR, "#.0"),        fmt(sim15.sumR, "#.0"))
     row(6, "Profit factor", fmt(profitFactor(sim5), "#.00"), fmt(profitFactor(sim15), "#.00"))
+    float beWr = optMode ? 100 * optSL / (optSL + optTP) : 100 / (1 + rr)
+    row(7, "Break-even win rate %", fmt(beWr, "#.0"), fmt(beWr, "#.0"))
+    if optMode
+        row(8, "Avg option % / trade", fmt(avgR(sim5) * optSL, "#.0"), fmt(avgR(sim15) * optSL, "#.0"))
+        row(9, "Total option %",       fmt(sim5.sumR * optSL, "#"),    fmt(sim15.sumR * optSL, "#"))
+    else
+        row(8, "Avg option % / trade", "-", "-")
+        row(9, "Total option %",       "-", "-")
     string verdict = na(wr5) or na(wr15) ? "not enough trades" : wr5 > wr15 ? "5-min box" : wr15 > wr5 ? "15-min box" : "tie"
-    row(7, "Higher win rate", verdict, "")
-    row(8, "Strategy Tester trades", orPick + "-min box", "")
+    row(10, "Higher win rate", verdict, "")
+    row(11, "Strategy Tester trades", orPick + "-min box", "")
+    row(12, "Exit rules", optMode ? "SL " + str.tostring(slPts, "#.#") + " / TP " + str.tostring(tpPts, "#.#") + " pts" : "Chart stop, " + str.tostring(rr) + "R", "")
     string tfNote = timeframe.in_seconds() > 60 ? "NOTE: video uses a 1-minute chart" : "Chart TF OK (1m)"
-    row(9, tfNote, "", "")
-    table.cell_set_bgcolor(tbl, 1, 7, color.new(color.green, 40))
+    row(13, tfNote, "", "")
+    table.cell_set_bgcolor(tbl, 1, 10, color.new(color.green, 40))
