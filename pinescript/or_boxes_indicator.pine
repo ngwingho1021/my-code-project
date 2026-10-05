@@ -93,8 +93,7 @@ method update(OrBox o, bool newDay, int sessStart, int endT, bool recent, bool e
         o.lo := na(o.lo) ? low  : math.min(o.lo, low)
         if enabled and recent
             o.draw(sessStart, endT)
-    else if time >= orEnd and not na(o.hi)
-        o.done := true
+    o.done := time >= orEnd and not na(o.hi)              // box has finished forming
 
 // ----------------------------------------------------------------------------- run
 int  y         = year(time, tz)
