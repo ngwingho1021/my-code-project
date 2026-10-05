@@ -138,6 +138,13 @@ type Sim
     float sumR     = 0.0
     float winR     = 0.0
     float lossR    = 0.0
+    // per-direction stats
+    int   lWins    = 0
+    int   lLosses  = 0
+    float lSumR    = 0.0
+    int   sWins    = 0
+    int   sLosses  = 0
+    float sSumR    = 0.0
 
 method closeTrade(Sim s, float px) =>
     float r = s.pos == 1 ? (px - s.entry) / s.risk : (s.entry - px) / s.risk
@@ -148,6 +155,18 @@ method closeTrade(Sim s, float px) =>
     else
         s.losses := s.losses + 1
         s.lossR  := s.lossR - r
+    if s.pos == 1
+        s.lSumR := s.lSumR + r
+        if r > 0
+            s.lWins := s.lWins + 1
+        else
+            s.lLosses := s.lLosses + 1
+    else
+        s.sSumR := s.sSumR + r
+        if r > 0
+            s.sWins := s.sWins + 1
+        else
+            s.sLosses := s.sLosses + 1
     s.pos := 0
 
 method queue(Sim s, int dir, float chartStop) =>
@@ -327,10 +346,14 @@ avgR(Sim s) =>
     int n = s.wins + s.losses
     n > 0 ? s.sumR / n : na
 
+dirStats(int w, int l, float sumR) =>
+    int n = w + l
+    n > 0 ? str.tostring(n) + " | " + str.tostring(100.0 * w / n, "#.0") + "% | " + str.tostring(sumR, "#.0") + "R" : "-"
+
 profitFactor(Sim s) =>
     s.lossR > 0 ? s.winR / s.lossR : na
 
-var table tbl = table.new(position.top_right, 3, 14, bgcolor = color.new(color.black, 15),
+var table tbl = table.new(position.top_right, 3, 16, bgcolor = color.new(color.black, 15),
      border_color = color.gray, border_width = 1, frame_color = color.gray, frame_width = 1)
 
 row(int r, string label, string a, string b) =>
@@ -362,5 +385,9 @@ if showTable and barstate.islast
     row(11, "Strategy Tester trades", orPick + "-min box", "")
     row(12, "Exit rules", optMode ? "SL " + str.tostring(slPts, "#.#") + " / TP " + str.tostring(tpPts, "#.#") + " pts" : "Chart stop, " + str.tostring(rr) + "R", "")
     string tfNote = timeframe.in_seconds() > 60 ? "NOTE: video uses a 1-minute chart" : "Chart TF OK (1m)"
-    row(13, tfNote, "", "")
+    row(13, "LONG  (trades | win% | R)", dirStats(sim5.lWins, sim5.lLosses, sim5.lSumR), dirStats(sim15.lWins, sim15.lLosses, sim15.lSumR))
+    row(14, "SHORT (trades | win% | R)", dirStats(sim5.sWins, sim5.sLosses, sim5.sSumR), dirStats(sim15.sWins, sim15.sLosses, sim15.sSumR))
+    row(15, tfNote, "", "")
+    table.cell_set_bgcolor(tbl, 0, 13, color.new(color.green, 60))
+    table.cell_set_bgcolor(tbl, 0, 14, color.new(color.red, 60))
     table.cell_set_bgcolor(tbl, 1, 10, color.new(color.green, 40))
