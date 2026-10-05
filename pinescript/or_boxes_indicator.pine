@@ -17,7 +17,8 @@ indicator("Opening Range Boxes (5m & 15m)", shorttitle = "OR Boxes", overlay = t
 
 // ----------------------------------------------------------------------------- inputs
 grpS   = "Session"
-tz     = input.string("America/New_York", "Timezone", group = grpS)
+tzIn   = input.string("America/New_York", "Timezone", options = ["America/New_York", "America/Chicago", "UTC"], group = grpS)
+tz     = tzIn == "" ? "America/New_York" : tzIn         // never pass an empty timezone
 sessH  = input.int(9,  "Open  hour",   0, 23, inline = "o", group = grpS)
 sessM  = input.int(30, "minute",       0, 59, inline = "o", group = grpS)
 endH   = input.int(11, "Extend box until hour", 0, 23, inline = "e", group = grpS,
