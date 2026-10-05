@@ -59,6 +59,7 @@ method reset(OrBox o) =>
     o.mid  := line(na)
     o.lbH  := label(na)
     o.lbL  := label(na)
+    o
 
 method draw(OrBox o, int sessStart, int endT) =>
     string tag = str.tostring(o.mins) + "m "
@@ -83,17 +84,21 @@ method draw(OrBox o, int sessStart, int endT) =>
         label.set_text(o.lbH, tag + "H " + str.tostring(o.hi, format.mintick))
         label.set_y(o.lbL, o.lo)
         label.set_text(o.lbL, tag + "L " + str.tostring(o.lo, format.mintick))
+    o
 
 method update(OrBox o, bool newDay, int sessStart, int endT, bool recent, bool enabled) =>
-    int orEnd = sessStart + o.mins * 60000
+    int  orEnd   = sessStart + o.mins * 60000
+    bool forming = time >= sessStart and time < orEnd     // box is forming
     if newDay
         o.reset()
-    if time >= sessStart and time < orEnd                 // box is forming
-        o.hi := na(o.hi) ? high : math.max(o.hi, high)
-        o.lo := na(o.lo) ? low  : math.min(o.lo, low)
-        if enabled and recent
-            o.draw(sessStart, endT)
+    float newHi = na(o.hi) ? high : math.max(o.hi, high)
+    float newLo = na(o.lo) ? low  : math.min(o.lo, low)
+    o.hi := forming ? newHi : o.hi
+    o.lo := forming ? newLo : o.lo
+    if forming and enabled and recent
+        o.draw(sessStart, endT)
     o.done := time >= orEnd and not na(o.hi)              // box has finished forming
+    o
 
 // ----------------------------------------------------------------------------- run
 int  y         = year(time, tz)
