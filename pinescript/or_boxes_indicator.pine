@@ -12,7 +12,7 @@
 //
 // Use on a 1-minute or 5-minute chart (the 15-minute box also works on 15m).
 // =============================================================================
-indicator("Opening Range Boxes (5m & 15m)", shorttitle = "OR Boxes", overlay = true,
+indicator("Opening Range Boxes (5m & 15m)", shorttitle = "OR Boxes", overlay = true, scale = scale.right,
      max_boxes_count = 500, max_lines_count = 500, max_labels_count = 500)
 
 // ----------------------------------------------------------------------------- inputs
